@@ -1,0 +1,41 @@
+{
+  "name": "midnightzk-offramp-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MidnightZK Off-Ramp SDK: non-custodial ADA→fiat off-ramps with Midnight ZK payee privacy + Cardano PlutusV3 escrow + Cash App / Wise / Revolut sandbox adapters.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "sdk",
+    "contract",
+    "midnight-local-cli"
+  ],
+  "scripts": {
+    "dev": "tsx backend/api/main.ts",
+    "serve": "tsx backend/api/main.ts",
+    "serve:ui": "npx --yes serve ui -l 5174",
+    "cardano:build": "cd cardano/escrow && aiken build",
+    "contract:compact": "npm run compact -w @offramp/midnight-contract",
+    "contract:build": "npm run build -w @offramp/midnight-contract",
+    "midnight:deploy": "npm run deploy -w @offramp/midnight-local-cli",
+    "midnight:run-all": "npm run run-all -w @offramp/midnight-local-cli",
+    "midnight:print-address": "npm run print-midnight-address -w @offramp/midnight-local-cli",
+    "test:internal": "tsx scripts/internal-test.ts",
+    "preprod:lock": "tsx scripts/preprod-lock.ts",
+    "preprod:refund": "tsx scripts/preprod-refund.ts"
+  },
+  "dependencies": {
+    "@lucid-evolution/lucid": "0.4.29",
+    "@lucid-evolution/utils": "0.1.66",
+    "dotenv": "^17.2.3",
+    "hono": "^4.12.9",
+    "@hono/node-server": "^1.13.7",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.10.0",
+    "@types/uuid": "^10.0.0"
+  }
+}

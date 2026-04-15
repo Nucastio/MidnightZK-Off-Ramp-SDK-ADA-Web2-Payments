@@ -2,13 +2,28 @@
 .cursor/
 **/.cursor/
 
-# Common local-only assistant or codegen config directories
+# Editor / assistant / codegen tool state — never commit
 .agents/
 .claude/
 .aider*
 .continue/
 .codegpt/
 .windsurf/
+.copilot/
+.github/copilot/
+.codeium/
+.tabnine/
+.codewhisperer/
+.zed/
+.devin/
+.replit/
+skills/
+skills-lock.json
+*.impeccable.md
+CLAUDE.md
+AGENTS.md
+.agent-memory/
+agent-memory/
 
 # Python
 __pycache__/
@@ -18,8 +33,37 @@ venv/
 *.egg-info/
 .eggs/
 
-# Local-only TAD PDF merge helper (regenerate TAD_v1.1.pdf without committing the script)
+# Local-only TAD PDF merge helper
 docs/build_tad_v1_1_pdf.py
+
+# Node / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local data + secrets
+data/
+.env
+.env.local
+
+# Aiken build artifacts
+cardano/escrow/build/
+
+# Midnight contract build outputs.
+# `contract/src/managed/` IS committed — it holds the compiled circuit + proving/verification keys
+# consumed by midnight-local-cli at runtime.
+contract/dist/
+
+# Midnight local wallet state (regenerated per run)
+midnight-local-cli/midnight-level-db/
+
+# Demo media (regenerated locally)
+docs/media/*.webm
+docs/media/*.ass
+
+# Playwright / test artifacts
+playwright-report/
+test-results/
 
 # OS and junk
 .DS_Store
@@ -27,3 +71,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.log
