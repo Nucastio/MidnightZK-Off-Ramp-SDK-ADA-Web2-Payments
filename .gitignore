@@ -1,0 +1,26 @@
+# Editor and local workspace metadata
+.cursor/
+**/.cursor/
+
+# Common local-only assistant or codegen config directories
+.agents/
+.claude/
+.aider*
+.continue/
+.codegpt/
+.windsurf/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.eggs/
+
+# OS and junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
