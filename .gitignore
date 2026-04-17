@@ -18,6 +18,9 @@ venv/
 *.egg-info/
 .eggs/
 
+# Local-only TAD PDF merge helper (regenerate TAD_v1.1.pdf without committing the script)
+docs/build_tad_v1_1_pdf.py
+
 # OS and junk
 .DS_Store
 Thumbs.db
