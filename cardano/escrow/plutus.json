@@ -1,0 +1,111 @@
+{
+  "preamble": {
+    "title": "nucast/offramp-escrow",
+    "description": "MidnightZK Off-Ramp SDK escrow: lock user ADA, release on operator-signed settlement, refund after deadline.",
+    "version": "0.1.0",
+    "plutusVersion": "v3",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.1.21+42babe5"
+    },
+    "license": "MIT"
+  },
+  "validators": [
+    {
+      "title": "escrow.escrow.spend",
+      "datum": {
+        "title": "datum",
+        "schema": {
+          "$ref": "#/definitions/escrow~1EscrowDatum"
+        }
+      },
+      "redeemer": {
+        "title": "redeemer",
+        "schema": {
+          "$ref": "#/definitions/escrow~1EscrowAction"
+        }
+      },
+      "compiledCode": "59014201010029800aba2aba1aab9faab9eaab9dab9a48888896600264653001300700198039804000cdc3a400530070024888966002600460106ea800e264653001159800980218051baa0018a508cc004c034c02cdd5000c8c038c03cc03cc03cc03cc03cc03cc03cc03c00644646600200200644b30010018a508acc004cdc79bae30110010038a518998010011809000a01a40409112cc004cdc3a4000601a6ea80262660026eb0c008c038dd50031bae30103011301130113011301130113011300e375400713300137586004601c6ea8018dd7180818089808980898089808980898071baa00340304025300a375400d300d00248896600266e1d20000028acc004c038dd5004c00e2c807a2b300130070028acc004c038dd5004c00e2c807a2c806100c0c030c034004c024dd5001c590070c01c004c00cdd5003c52689b2b20021",
+      "hash": "d82dd8d74ec6593f8746835c06d96025daae6700ce717bfe9e14b00e"
+    },
+    {
+      "title": "escrow.escrow.else",
+      "redeemer": {
+        "schema": {}
+      },
+      "compiledCode": "59014201010029800aba2aba1aab9faab9eaab9dab9a48888896600264653001300700198039804000cdc3a400530070024888966002600460106ea800e264653001159800980218051baa0018a508cc004c034c02cdd5000c8c038c03cc03cc03cc03cc03cc03cc03cc03c00644646600200200644b30010018a508acc004cdc79bae30110010038a518998010011809000a01a40409112cc004cdc3a4000601a6ea80262660026eb0c008c038dd50031bae30103011301130113011301130113011300e375400713300137586004601c6ea8018dd7180818089808980898089808980898071baa00340304025300a375400d300d00248896600266e1d20000028acc004c038dd5004c00e2c807a2b300130070028acc004c038dd5004c00e2c807a2c806100c0c030c034004c024dd5001c590070c01c004c00cdd5003c52689b2b20021",
+      "hash": "d82dd8d74ec6593f8746835c06d96025daae6700ce717bfe9e14b00e"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "dataType": "bytes"
+    },
+    "Int": {
+      "dataType": "integer"
+    },
+    "escrow/EscrowAction": {
+      "title": "EscrowAction",
+      "description": "Redeemer selector.\n\n `Release` is consumed by the operator after the rail has confirmed payout\n (current build: operator-signed; a future revision will additionally\n verify the Midnight proof + Settlement Oracle attestation on-chain).\n\n `Refund` is consumed by the sender after the deadline has passed.",
+      "anyOf": [
+        {
+          "title": "Release",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Refund",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        }
+      ]
+    },
+    "escrow/EscrowDatum": {
+      "title": "EscrowDatum",
+      "description": "Off-ramp escrow datum.\n\n Public on-chain payload that binds a Cardano UTxO to an off-ramp `intent_id`,\n the Midnight ZK verification-key hash (`vk_hash`), and the rail adapter id.\n Sensitive values (payee handle, fiat amount, KYC attributes) live only in the\n off-chain witness; on-chain we keep their SHA-256 commitments + the deadline.",
+      "anyOf": [
+        {
+          "title": "EscrowDatum",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "intent_id",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "payee_commitment",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "amount_commitment",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "adapter_id",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "deadline",
+              "$ref": "#/definitions/Int"
+            },
+            {
+              "title": "vk_hash",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "sender_pkh",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "operator_pkh",
+              "$ref": "#/definitions/ByteArray"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

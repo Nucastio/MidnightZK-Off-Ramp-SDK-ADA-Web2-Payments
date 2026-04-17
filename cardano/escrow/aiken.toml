@@ -1,0 +1,18 @@
+name = "nucast/offramp-escrow"
+version = "0.1.0"
+compiler = "v1.1.21"
+plutus = "v3"
+license = "MIT"
+description = "MidnightZK Off-Ramp SDK escrow: lock user ADA, release on operator-signed settlement, refund after deadline."
+
+[repository]
+user = "Nucastio"
+project = "MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"
+
+[config]
