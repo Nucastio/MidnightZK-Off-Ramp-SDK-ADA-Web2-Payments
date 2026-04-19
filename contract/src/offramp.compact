@@ -1,0 +1,109 @@
+pragma language_version >= 0.22;
+
+import CompactStandardLibrary;
+
+// ── Public ledger state ────────────────────────────────────────────────────
+// On-chain (Midnight) values bound to a single off-ramp intent.
+// Nothing here reveals the payee handle, fiat amount, or KYC attributes —
+// only their commitments + status flags.
+
+/// SHA-256(intent_id ‖ rail_adapter_id ‖ sender_pkh) — 32-byte intent identifier.
+export ledger intentId: Bytes<32>;
+
+/// SHA-256(payee_handle ‖ salt) — binds the user's chosen rail payee.
+export ledger payeeCommitment: Bytes<32>;
+
+/// SHA-256(principal ‖ fees ‖ rail_quote_digest ‖ salt) — binds the fiat amount.
+export ledger amountCommitment: Bytes<32>;
+
+/// Rail adapter identifier (cashapp / wise / revolut) hashed for stable on-chain shape.
+export ledger adapterTag: Bytes<32>;
+
+/// Optional Cardano settlement-tx anchor (L1 ↔ Midnight binding).
+export ledger l1Anchor: Bytes<32>;
+
+/// Compliance predicate result (single-bit packed in 32 bytes for uniform shape).
+export ledger complianceFlag: Bytes<32>;
+
+/// Settlement digest signed by the Settlement Oracle (binds rail webhook to intent).
+export ledger settlementDigest: Bytes<32>;
+
+// ── Private witnesses ──────────────────────────────────────────────────────
+// Supplied by the off-chain prover; never leave the wallet / proof enclave.
+
+witness payeeSecret(): Maybe<Bytes<32>>;
+witness amountSecret(): Maybe<Bytes<32>>;
+witness jurisdictionAttr(): Maybe<Bytes<32>>;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+circuit deriveCommitment(domain: Bytes<32>, secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([domain, secret]);
+}
+
+// ── Constructor ────────────────────────────────────────────────────────────
+
+constructor(intent: Bytes<32>, payee: Bytes<32>, amount: Bytes<32>, adapter: Bytes<32>) {
+  intentId = disclose(intent);
+  payeeCommitment = disclose(payee);
+  amountCommitment = disclose(amount);
+  adapterTag = disclose(adapter);
+  l1Anchor = disclose(pad(32, ""));
+  complianceFlag = disclose(pad(32, ""));
+  settlementDigest = disclose(pad(32, ""));
+}
+
+// ── Circuits ───────────────────────────────────────────────────────────────
+
+/// Anchor the off-ramp intent on Midnight. Public-only call (no witness gate);
+/// a future revision will additionally bind a Cardano LOCK tx hash.
+export circuit bindOffRampIntent(anchor: Bytes<32>): [] {
+  l1Anchor = disclose(anchor);
+}
+
+/// Prove the off-chain prover knows the payee secret whose commitment matches
+/// the on-ledger `payeeCommitment`. Reveals no payee data.
+export circuit provePayeeBinding(): Boolean {
+  const s = payeeSecret();
+  assert(s.is_some, "Payee secret missing");
+  const c = disclose(deriveCommitment(pad(32, "offramp:payee:v1"), s.value));
+  assert(c == payeeCommitment, "Payee commitment mismatch");
+  return true;
+}
+
+/// Prove the off-chain prover knows the amount-side witness whose commitment
+/// matches the on-ledger `amountCommitment`. Reveals no fiat amount.
+export circuit proveAmountBinding(): Boolean {
+  const s = amountSecret();
+  assert(s.is_some, "Amount secret missing");
+  const c = disclose(deriveCommitment(pad(32, "offramp:amount:v1"), s.value));
+  assert(c == amountCommitment, "Amount commitment mismatch");
+  return true;
+}
+
+/// Optional jurisdiction predicate. The prover supplies an attribute digest;
+/// circuit publishes only `allowedMask` as `complianceFlag`. The equality is
+/// enforced via assert (so a false predicate makes the proof fail rather than
+/// disclosing the comparison result).
+export circuit proveComplianceFlag(allowedMask: Bytes<32>): [] {
+  const a = jurisdictionAttr();
+  assert(a.is_some, "Jurisdiction attribute missing");
+  // Current build: simple equality predicate; future revision may swap for set-membership / range proofs.
+  assert(a.value == allowedMask, "Jurisdiction attribute does not match allowed mask");
+  complianceFlag = disclose(allowedMask);
+}
+
+/// Aggregated final proof: re-asserts payee + amount bindings and records the
+/// Settlement Oracle's `settlement_digest` on-chain.
+export circuit proveOffRampSettlement(digest: Bytes<32>): Boolean {
+  const ps = payeeSecret();
+  const as_ = amountSecret();
+  assert(ps.is_some, "Payee secret missing");
+  assert(as_.is_some, "Amount secret missing");
+  const pc = disclose(deriveCommitment(pad(32, "offramp:payee:v1"), ps.value));
+  const ac = disclose(deriveCommitment(pad(32, "offramp:amount:v1"), as_.value));
+  assert(pc == payeeCommitment, "Payee commitment mismatch");
+  assert(ac == amountCommitment, "Amount commitment mismatch");
+  settlementDigest = disclose(digest);
+  return true;
+}

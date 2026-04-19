@@ -1,0 +1,30 @@
+{
+  "name": "@offramp/midnight-contract",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "compact": "compact compile src/offramp.compact src/managed/offramp && node strip-managed-sourcemaps.mjs src/managed/offramp",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -R src/managed dist/managed && cp src/*.compact dist/ && node strip-managed-sourcemaps.mjs dist/managed/offramp",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-js": "2.5.0",
+    "@midnight-ntwrk/compact-runtime": "0.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3"
+  }
+}
