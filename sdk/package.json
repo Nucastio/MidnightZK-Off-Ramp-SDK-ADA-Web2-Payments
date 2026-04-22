@@ -1,0 +1,19 @@
+{
+  "name": "@nucast/midnightzk-offramp-sdk",
+  "version": "0.1.0",
+  "description": "Non-custodial ADA→fiat off-ramp SDK: Cardano escrow + Midnight ZK + rail adapters (Cash App, Wise, Revolut).",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapters/*": "./src/adapters/*.ts",
+    "./cardano/*": "./src/cardano/*.ts",
+    "./oracle/*": "./src/oracle/*.ts"
+  },
+  "files": ["src"],
+  "peerDependencies": {
+    "@lucid-evolution/lucid": "0.4.29",
+    "@lucid-evolution/utils": "0.1.66"
+  }
+}
