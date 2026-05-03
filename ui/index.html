@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MidnightZK Off-Ramp SDK — ADA ⇆ Web2 Payments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="top-nav">
+      <div class="wordmark"><span class="dot"></span>MidnightZK Off-Ramp SDK</div>
+      <span class="subtitle">ADA → Cash App · Wise · Revolut</span>
+      <div class="nav-spacer"></div>
+      <div class="nav-links">
+        <a id="api-docs" target="_blank">API docs</a>
+        <a href="https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments" target="_blank">GitHub</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <h1>Non-custodial ADA → fiat off-ramps with ZK payee privacy</h1>
+      <p class="tagline">Lock ADA on Cardano, prove payee + amount with Midnight zk-SNARKs (without revealing them), route payout through Cash App / Wise / Revolut, and release on a signed Settlement Oracle attestation.</p>
+      <div class="hero-meta">
+        <div><span class="muted">Cardano network</span><strong id="hero-network">…</strong></div>
+        <div><span class="muted">Escrow script</span><strong><code id="hero-escrow">…</code></strong></div>
+        <div><span class="muted">Midnight circuit</span><strong><code id="hero-circuit">…</code></strong></div>
+        <div><span class="muted">vk_hash</span><strong><code id="hero-vk">…</code></strong></div>
+        <div><span class="muted">Rail mode</span><strong><span id="hero-mode" class="badge info">…</span></strong></div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <div class="steps">
+        <!-- Step 1 — Initiate -->
+        <div class="step" id="step-1">
+          <div class="step-head">
+            <div class="step-num">1</div>
+            <div class="step-title">Initiate off-ramp</div>
+            <div class="step-status">Build commitments + rail quote</div>
+          </div>
+          <div class="row-3">
+            <label>Rail<select id="f-adapter"><option value="cashapp">Cash App</option><option value="wise">Wise</option><option value="revolut">Revolut</option></select></label>
+            <label>Fiat currency<select id="f-currency"><option>USD</option><option>EUR</option><option>GBP</option></select></label>
+            <label>Fiat amount<input id="f-fiat" value="1.50" /></label>
+          </div>
+          <div class="row">
+            <label>Payee handle (never logged in clear)<input id="f-payee" value="$alice" /></label>
+            <label>ADA escrow (lovelace)<input id="f-lovelace" value="2000000" /></label>
+          </div>
+          <button id="btn-initiate">Initiate intent</button>
+          <div id="r-initiate" class="result" hidden></div>
+        </div>
+
+        <!-- Step 2 — Lock ADA -->
+        <div class="step" id="step-2">
+          <div class="step-head">
+            <div class="step-num">2</div>
+            <div class="step-title">Lock ADA on Cardano (PlutusV3 escrow)</div>
+            <div class="step-status">Inline EscrowDatum binds intent + commitments</div>
+          </div>
+          <p class="muted">Submits the LOCK tx via Blockfrost on Preprod. Datum holds <code>intent_id</code>, <code>payee_commitment</code>, <code>amount_commitment</code>, <code>adapter_id</code>, <code>deadline</code>, <code>vk_hash</code>, <code>sender_pkh</code>, <code>operator_pkh</code>.</p>
+          <button id="btn-lock" disabled>Submit LOCK tx</button>
+          <button id="btn-skip-lock" class="secondary">Skip (use existing testnet lock)</button>
+          <div id="r-lock" class="result" hidden></div>
+        </div>
+
+        <!-- Step 3 — Prove -->
+        <div class="step" id="step-3">
+          <div class="step-head">
+            <div class="step-num">3</div>
+            <div class="step-title">Generate Midnight ZK proof</div>
+            <div class="step-status">Prove payee + amount commitments without revealing them</div>
+          </div>
+          <p class="muted">Runs the off-ramp circuit prover (NFR-2 target ≤ 50 s). Returns a 32-byte proof digest bound to <code>vk_hash</code>, the public inputs, and the private witnesses.</p>
+          <button id="btn-prove" disabled>Generate proof</button>
+          <div id="r-prove" class="result" hidden></div>
+        </div>
+
+        <!-- Step 4 — Submit Payment -->
+        <div class="step" id="step-4">
+          <div class="step-head">
+            <div class="step-num">4</div>
+            <div class="step-title">Submit fiat payment via rail adapter</div>
+            <div class="step-status">Cash App / Wise / Revolut sandbox</div>
+          </div>
+          <button id="btn-submit" disabled>Submit payment</button>
+          <div id="r-submit" class="result" hidden></div>
+        </div>
+
+        <!-- Step 5 — Settle -->
+        <div class="step" id="step-5">
+          <div class="step-head">
+            <div class="step-num">5</div>
+            <div class="step-title">Settlement Oracle attestation</div>
+            <div class="step-status">Ed25519-signed canonical event bound to intent_id</div>
+          </div>
+          <button id="btn-settle" disabled>Confirm settlement</button>
+          <div id="r-settle" class="result" hidden></div>
+        </div>
+
+        <!-- Step 6 — Release/Refund -->
+        <div class="step" id="step-6">
+          <div class="step-head">
+            <div class="step-num">6</div>
+            <div class="step-title">Release escrow / Refund on timeout</div>
+            <div class="step-status">Operator-signed spend</div>
+          </div>
+          <button id="btn-release" disabled>Submit RELEASE tx</button>
+          <button id="btn-refund" class="secondary">Submit REFUND tx (after deadline)</button>
+          <div id="r-release" class="result" hidden></div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="card">
+          <h2>Activity</h2>
+          <div class="activity">
+            <div class="activity-col midnight"><h3><span class="dot"></span>Midnight ZK</h3><div id="log-midnight"></div></div>
+            <div class="activity-col cardano"><h3><span class="dot"></span>Cardano L1</h3><div id="log-cardano"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Internal test suite</h2>
+          <p class="muted">Runs 30 simulated off-ramps (10 per rail) end-to-end. Target ≥ 90% success.</p>
+          <div class="row">
+            <label>Runs per rail<input id="f-runs" value="10" /></label>
+          </div>
+          <button id="btn-test">Run test suite</button>
+          <div id="r-test" class="test-suite" style="margin-top: var(--space-3);"></div>
+        </div>
+
+        <div class="card">
+          <h2>Testnet evidence</h2>
+          <p class="muted">Live Preprod transactions + Midnight Preview attestations are recorded in <code>docs/testnet-evidence.md</code>.</p>
+          <ul id="testnet-list" style="margin: 0; padding-left: var(--space-4);"></ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
