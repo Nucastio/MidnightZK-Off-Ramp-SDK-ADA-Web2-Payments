@@ -57,13 +57,13 @@ contract/dist/
 # Midnight local wallet state (regenerated per run)
 midnight-local-cli/midnight-level-db/
 
+# Test artifacts
+test-results/
+
 # Demo media (regenerated locally)
 docs/media/*.webm
 docs/media/*.ass
 
-# Playwright / test artifacts
-playwright-report/
-test-results/
 
 # OS and junk
 .DS_Store
