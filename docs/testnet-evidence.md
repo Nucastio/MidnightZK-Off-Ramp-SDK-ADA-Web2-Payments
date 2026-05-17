@@ -18,10 +18,16 @@ All transactions are on **Cardano Preprod** and were submitted from the same dem
 | Step | Adapter | Tx hash | Cardanoscan |
 |------|---------|---------|-------------|
 | LOCK #1 | Cash App | `f26f023dfc809cb1adad4830bae0025cbe1334fae9811c7a036239eb85fbc6c3` | [view](https://preprod.cardanoscan.io/transaction/f26f023dfc809cb1adad4830bae0025cbe1334fae9811c7a036239eb85fbc6c3) |
-| REFUND  | (spend of LOCK #1) | `a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9` | [view](https://preprod.cardanoscan.io/transaction/a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9) |
+| REFUND  | (spend of LOCK #1, sender-signed) | `a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9` | [view](https://preprod.cardanoscan.io/transaction/a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9) |
 | LOCK #2 | Wise | `03089ef869daf44c511539c915bc825435c18770071aa923322b43b29dc3b869` | [view](https://preprod.cardanoscan.io/transaction/03089ef869daf44c511539c915bc825435c18770071aa923322b43b29dc3b869) |
+| LOCK #3 | Wise | `b55e48084290f6b88b8fd6489f40e65acc50664fba4873feb1248dffbcb64ac2` | [view](https://preprod.cardanoscan.io/transaction/b55e48084290f6b88b8fd6489f40e65acc50664fba4873feb1248dffbcb64ac2) |
+| RELEASE | (spend of LOCK #3, operator-signed) | `c84c242d6f86dbdac54ded62c92bbdc88b5725722d1691728854e20d62bd3168` | [view](https://preprod.cardanoscan.io/transaction/c84c242d6f86dbdac54ded62c92bbdc88b5725722d1691728854e20d62bd3168) |
 
-Combined, the LOCK txs prove the validator accepts deposits with the structured inline `EscrowDatum`, and the REFUND tx proves the validator's `Refund` spend path enforces the sender-signature requirement (the same code path will be exercised by `Release` once the operator-PKH variant is run).
+The five transactions exercise the full validator surface:
+
+- **LOCK** accepts deposits with the structured inline `EscrowDatum`.
+- **REFUND** path validates the sender-signature requirement (`Refund` redeemer, `sender_pkh` in `extra_signatories`).
+- **RELEASE** path validates the operator-signature requirement (`Release` redeemer, `operator_pkh` in `extra_signatories`).
 
 ## Datum shape recorded on-chain
 
