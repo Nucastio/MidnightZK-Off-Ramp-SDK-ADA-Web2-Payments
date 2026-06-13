@@ -1,0 +1,67 @@
+site_name: MidnightZK Off-Ramp SDK
+site_description: Non-custodial ADA → fiat off-ramps for Cardano wallets and dApps — Cardano PlutusV3 escrow + Midnight zk-SNARK circuits + Cash App / Wise / Revolut adapters.
+site_url: https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/
+repo_url: https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments
+repo_name: Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Quickstart: quickstart.md
+      - Integration guide: integration.md
+      - Examples: examples.md
+  - Reference:
+      - API reference: api-reference.md
+      - SDK reference: sdk-reference.md
+      - Architecture: architecture.md
+  - Release evidence:
+      - Final Testing & Release: final-testing-and-release.md
+      - Internal testing report: internal-testing-report.md
+      - Cardano Preprod evidence: testnet-evidence.md
+      - Wise sandbox evidence: sandbox-evidence/README.md

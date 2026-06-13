@@ -1,0 +1,73 @@
+name: Release
+
+# Creates a GitHub Release with the source archive attached when a `v*` tag
+# is pushed. No npm publish — releases are GitHub-only.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package source archive
+        run: |
+          mkdir -p release-artifacts
+          TAG="${GITHUB_REF_NAME}"
+          ARCHIVE="midnightzk-offramp-sdk-${TAG}.tar.gz"
+          git archive --format=tar.gz \
+            -o "release-artifacts/${ARCHIVE}" \
+            --prefix="midnightzk-offramp-sdk-${TAG}/" \
+            HEAD
+          ls -la release-artifacts
+
+      - name: Compose release notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          cat > release-notes.md <<EOF
+          # ${TAG}
+
+          MidnightZK Off-Ramp SDK — ADA ⇆ Web2 Payments.
+
+          ## What's in this release
+
+          - **Cardano PlutusV3 escrow** (Aiken) — LOCK + REFUND + RELEASE paths, 5 real Preprod tx hashes recorded.
+          - **Midnight zk-SNARK circuits** (Compact) — payee, amount, compliance, and settlement predicates; 4 SNARK proofs deployed.
+          - **Rail adapters** for Cash App (Afterpay), Wise (live sandbox), Revolut — behind a stable \`RailAdapter\` interface.
+          - **Settlement Oracle** — Ed25519-signed canonical attestations bound to \`intent_id\`.
+          - **Hono backend + OpenAPI / Swagger UI** + vanilla off-ramp UI.
+          - **Internal test harness** — 30 simulated off-ramps × 3 rails.
+
+          ## Evidence
+
+          - [Final Testing & Release document](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/final-testing-and-release.md)
+          - [Hosted developer docs](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/)
+          - [Testnet evidence (5 Preprod tx)](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/testnet-evidence.md)
+          - [Internal testing report](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/internal-testing-report.md)
+          - [Wise sandbox evidence](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/sandbox-evidence/README.md)
+          - [Demo recording](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/media/offramp-demo.mp4)
+
+          ## Install
+
+          Clone the repo and follow the [quickstart](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/quickstart/), or download the attached source archive.
+          EOF
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: release-artifacts/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
