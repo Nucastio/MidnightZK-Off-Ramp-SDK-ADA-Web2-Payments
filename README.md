@@ -1,5 +1,24 @@
 # MidnightZK Off-Ramp SDK — ADA ⇆ Web2 Payments
 
+[![Docs](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/actions/workflows/docs.yml/badge.svg)](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/)
+[![Release](https://img.shields.io/github/v/release/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments?include_prereleases&display_name=tag)](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+## v1.0.0 evidence package
+
+| Resource | URL |
+|----------|-----|
+| Documentation site (GitHub Pages) | <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/> |
+| Final Testing & Release document | [docs/final-testing-and-release.md](./docs/final-testing-and-release.md) |
+| Tagged release (source archive) | [Releases](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases) |
+| Demo walkthrough video | [docs/media/offramp-demo.mp4](./docs/media/offramp-demo.mp4) |
+| Internal testing report | [docs/internal-testing-report.md](./docs/internal-testing-report.md) |
+| Cardano Preprod evidence (5 tx) | [docs/testnet-evidence.md](./docs/testnet-evidence.md) |
+| Wise sandbox evidence | [docs/sandbox-evidence/](./docs/sandbox-evidence/) |
+| Afterpay Online APIs v2 (Cash App reference) | [Postman](https://www.postman.com/afterpay-1-426879/afterpay-online-apis-v2/folder/zohg5nd/checkouts) |
+| TAD v1.1 (canonical) — TAD v1 superseded | [docs/TAD_v1.1.pdf](./docs/TAD_v1.1.pdf) |
+| CHANGELOG | [CHANGELOG.md](./CHANGELOG.md) |
+
 Non-custodial ADA → fiat off-ramps for Cardano wallets and dApps, powered by:
 
 - **Cardano PlutusV3 escrow** (Aiken) — locks user ADA with a structured inline `EscrowDatum`, releases on an operator-signed RELEASE redeemer, refunds on a sender-signed REFUND redeemer
@@ -9,7 +28,9 @@ Non-custodial ADA → fiat off-ramps for Cardano wallets and dApps, powered by:
 
 This repo ships the SDK, smart contract, sandbox integrations, Cardano testnet deployment, internal testing report, and demo video.
 
-## Live MVP (Cardano Preprod + mock sandbox rails)
+## Live MVP (Cardano Preprod + mock sandbox rails) — _evaluation-window only_
+
+> ⚠️ The two `*.trycloudflare.com` URLs below are **ephemeral quick-tunnels** tied to a local process. They may go offline outside the evaluation window. To reproduce locally, follow the [Quickstart](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/quickstart/).
 
 | Resource | URL |
 |----------|-----|
