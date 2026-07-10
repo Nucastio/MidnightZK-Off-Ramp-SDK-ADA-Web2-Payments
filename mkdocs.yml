@@ -62,6 +62,7 @@ nav:
       - Architecture: architecture.md
   - Release evidence:
       - Final Testing & Release: final-testing-and-release.md
+      - Community engagement: community-engagement.md
       - Internal testing report: internal-testing-report.md
       - Cardano Preprod evidence: testnet-evidence.md
       - Wise sandbox evidence: sandbox-evidence/README.md

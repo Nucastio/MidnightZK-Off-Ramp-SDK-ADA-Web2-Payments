@@ -9,7 +9,11 @@
 | Resource | URL |
 |----------|-----|
 | Documentation site (GitHub Pages) | <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/> |
-| Final Testing & Release document | [docs/final-testing-and-release.md](./docs/final-testing-and-release.md) |
+| Project Completion Report (PCR) | [PCR.pdf](./PCR.pdf) · [PCR.md](./PCR.md) |
+| Project Completion Video (PCV) | _public video link — see final PoA submission_ |
+| Final Project Report | [FINAL_REPORT.md](./FINAL_REPORT.md) |
+| Community campaign + engagement | [docs/community-engagement.md](./docs/community-engagement.md) |
+| Final Testing & Release document | [markdown](./docs/final-testing-and-release.md) · [PDF](./docs/final-testing-and-release.pdf) |
 | Tagged release (source archive) | [Releases](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases) |
 | Demo walkthrough video | [docs/media/offramp-demo.mp4](./docs/media/offramp-demo.mp4) |
 | Internal testing report | [docs/internal-testing-report.md](./docs/internal-testing-report.md) |
