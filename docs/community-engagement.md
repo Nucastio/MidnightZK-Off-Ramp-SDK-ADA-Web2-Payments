@@ -10,7 +10,7 @@ Record of the open community testing campaign and SDK launch marketing targeting
 | 2 | X — @NucastIO | <https://x.com/nucastio/status/2066299179316490341> | Jun 14 | "Non-custodial + private + ADA → fiat" — feature summary + links |
 | 3 | X — @NucastIO | <https://x.com/nucastio/status/2067005855581802888> | Jun 16 | "We are making Cardano more usable for everyone!" — friction problem + SDK pitch |
 | 4 | X — @NucastIO | <https://x.com/nucastio/status/2067365764110197176> | Jun 17 | "The future for Cardano adoption is looking really good." — follow-up + link |
-| 5 | Discord — Nucast community server, `@everyone` announcement by **Sri Charan** | Server announcement channel (screenshot filed with the PoA) | Jun 20, 23:58 | Full launch announcement: problem statement, non-custodial ADA → fiat rails (Cash App / Revolut / Wise), open-source positioning, link to post #3 |
+| 5 | Discord — Nucast community server, `@everyone` announcement by **Sri Charan** | Server announcement channel ([screenshot](evidence/discord-announcement-jun20.jpeg)) | Jun 20, 23:58 | Full launch announcement: problem statement, non-custodial ADA → fiat rails (Cash App / Revolut / Wise), open-source positioning, link to post #3 |
 
 **Meets the ≥5-posts criterion** (4 X posts + 1 Discord announcement), all promoting the SDK release and documentation links.
 
@@ -43,7 +43,7 @@ Per-post metrics read directly from the account's X Analytics panels — screens
 | [`evidence/x-post-2-jun14-noncustodial.jpeg`](evidence/x-post-2-jun14-noncustodial.jpeg) | Post #2 analytics — 18 / 4 / 0 / 1,604 / 33 |
 | [`evidence/x-post-3-jun16-usable.jpeg`](evidence/x-post-3-jun16-usable.jpeg) | Post #3 analytics — 83 / 15 / 6 / 6,241 / 190 |
 | [`evidence/x-post-4-jun17-adoption.jpeg`](evidence/x-post-4-jun17-adoption.jpeg) | Post #4 analytics — 13 / 4 / 0 / 3,644 / 29 |
-| Discord announcement screenshot | Filed with the PoA submission (reaction row totalling 56) |
+| [`evidence/discord-announcement-jun20.jpeg`](evidence/discord-announcement-jun20.jpeg) | Post #5 — Discord `@everyone` launch announcement by Sri Charan (Jun 20, 23:58) with the full reaction row totalling 56 |
 
 ![Post #1 — Jun 14 launch](evidence/x-post-1-jun14-launch.jpeg)
 
@@ -52,6 +52,8 @@ Per-post metrics read directly from the account's X Analytics panels — screens
 ![Post #3 — Jun 16 usable-for-everyone](evidence/x-post-3-jun16-usable.jpeg)
 
 ![Post #4 — Jun 17 adoption](evidence/x-post-4-jun17-adoption.jpeg)
+
+![Post #5 — Discord launch announcement, Jun 20](evidence/discord-announcement-jun20.jpeg)
 
 > **Method note.** Public like/repost/reply counts on the four X post URLs are independently verifiable by any reviewer without an X login. Impressions, detail expands, profile visits, and X's composite "engagements" metric are owner-visible in X Analytics and are evidenced by the committed screenshots above (captured 2026-07-02). Discord reaction counts are read directly from the announcement message.
 
