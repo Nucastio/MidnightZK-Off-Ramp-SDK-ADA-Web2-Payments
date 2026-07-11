@@ -12,7 +12,7 @@
 | **Project Completion Date** | June 20, 2026 |
 | **Repository** | [Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments) |
 | **Documentation site** | [nucastio.github.io/MidnightZK-Off-Ramp-SDK-…](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/) |
-| **Project Completion Video (PCV)** | _[public video link — see final PoA submission]_ |
+| **Project Completion Video (PCV)** | [youtu.be/FDI2ymlPqXY](https://youtu.be/FDI2ymlPqXY) |
 
 ## 1. Deliverables
 
@@ -47,4 +47,4 @@ Before this project there was **no open-source, non-custodial ADA → fiat off-r
 
 ---
 
-**Project Completion Video (PCV):** _public video link included in the final PoA submission._ Supplementary in-repo recording: [docs/media/offramp-demo.mp4](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/media/offramp-demo.mp4) — live technical walkthrough with English audio commentary and subtitles, executing a real Wise-sandbox off-ramp end-to-end.
+**Project Completion Video (PCV):** [youtu.be/FDI2ymlPqXY](https://youtu.be/FDI2ymlPqXY) — public YouTube link with no access restrictions, English audio commentary. Supplementary in-repo recording: [docs/media/offramp-demo.mp4](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/media/offramp-demo.mp4) — live technical walkthrough with English audio commentary and subtitles, executing a real Wise-sandbox off-ramp end-to-end.

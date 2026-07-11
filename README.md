@@ -10,7 +10,7 @@
 |----------|-----|
 | Documentation site (GitHub Pages) | <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/> |
 | Project Completion Report (PCR) | [PCR.pdf](./PCR.pdf) · [PCR.md](./PCR.md) |
-| Project Completion Video (PCV) | _public video link — see final PoA submission_ |
+| Project Completion Video (PCV) | [youtu.be/FDI2ymlPqXY](https://youtu.be/FDI2ymlPqXY) |
 | Final Project Report | [FINAL_REPORT.md](./FINAL_REPORT.md) |
 | Community campaign + engagement | [docs/community-engagement.md](./docs/community-engagement.md) |
 | Final Testing & Release document | [markdown](./docs/final-testing-and-release.md) · [PDF](./docs/final-testing-and-release.pdf) |
