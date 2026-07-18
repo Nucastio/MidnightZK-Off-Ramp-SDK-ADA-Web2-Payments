@@ -34,7 +34,6 @@ async function main() {
   const res = await submitRefundTx(
     lucid,
     { txHash: lockTxHash, outputIndex },
-    2_000_000n - 1_000_000n, // pay back original min-ADA minus fee buffer
   );
   console.log("REFUND tx     =", res.txHash);
   console.log("explorer      = https://preprod.cardanoscan.io/transaction/" + res.txHash);

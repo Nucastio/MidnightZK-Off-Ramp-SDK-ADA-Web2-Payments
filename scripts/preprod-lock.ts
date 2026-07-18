@@ -13,10 +13,12 @@ import {
   OffRampSDK,
   createAppLucid,
   paymentPkhFromAddress,
+  operatorPublicKeyHex,
   submitLockTx,
   escrowScriptAddress,
 } from "../sdk/src/index.ts";
 import type { Currency, RailId } from "../sdk/src/types.ts";
+import { createMidnightProofProviderFromEnv } from "../midnight-local-cli/src/index.ts";
 
 const DATA_DIR = process.env.OFFRAMP_DATA_DIR ?? "data";
 const EVIDENCE_PATH = `${DATA_DIR}/preprod-evidence.json`;
@@ -42,7 +44,11 @@ async function main() {
   const senderPkh = paymentPkhFromAddress(senderAddr);
   const operatorPkh = senderPkh; // single-seed demo
 
-  const sdk = new OffRampSDK({ senderPkh, operatorPkh });
+  const sdk = new OffRampSDK({
+    senderPkh,
+    operatorPkh,
+    midnightProofProvider: createMidnightProofProviderFromEnv(),
+  });
   const { initiate, payeeSalt, amountSalt, railQuote } = await sdk.initiateOffRamp({
     adapter,
     payeeHandle,
@@ -64,9 +70,10 @@ async function main() {
     amountCommitment: initiate.amountCommitment,
     adapterTag: initiate.adapterTag,
     deadline: BigInt(initiate.deadline) * 1000n,
-    vkHash: initiate.vkHash,
+    circuitArtifactHash: initiate.vkHash,
     senderPkh,
     operatorPkh,
+    oraclePublicKey: operatorPublicKeyHex(),
   };
 
   const res = await submitLockTx(lucid, datum, initiate.escrowLovelace);

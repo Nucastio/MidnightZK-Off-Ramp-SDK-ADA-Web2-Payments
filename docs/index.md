@@ -2,12 +2,14 @@
 
 Non-custodial **ADA → fiat off-ramps** for Cardano wallets and dApps, powered by:
 
-- **Cardano PlutusV3 escrow** (Aiken) — locks user ADA with a structured inline `EscrowDatum`, releases on an operator-signed `RELEASE` redeemer, refunds on a sender-signed `REFUND` redeemer.
-- **Midnight zk-SNARK circuits** (Compact) — prove payee + amount + optional compliance predicates **without revealing** handles, fiat amounts, or KYC attributes.
-- **Modular rail adapters** — sandbox-first **Cash App (Afterpay)**, **Wise**, and **Revolut** with a stable `RailAdapter` interface that swaps in real provider HTTP calls when credentials are configured.
-- **Settlement Oracle** — Ed25519-signed canonical attestations binding rail webhook events to `intent_id`.
+- **Cardano PlutusV3 escrow** (Aiken) — locks user ADA with a structured inline `EscrowDatum`. `Release` requires an **oracle-signed, UTxO-bound release authorization** (Ed25519, verified on-chain) plus the operator signature, a validity window entirely before the deadline and the authorization expiry, and full escrow value paid to the datum-bound operator address. `Refund` is **deadline-gated**, sender-signed, and pays full value back to the datum-bound sender address. 25/25 Aiken tests.
+- **Midnight execution via a required `MidnightProofProvider`** — the SDK **fails closed** without a real provider (no simulation fallback). Receipts carry finalized Midnight transaction/block identifiers and public contract state, pinned by the 23-asset circuit **artifact manifest hash** (`vkHash`).
+- **Modular rail adapters** — **Wise** (strict sandbox client, no mock fallback), **Revolut** (live-sandbox verified: a real sandbox payment completed through the adapter), **Cash App** (implemented against the official Payouts API; **credential-gated early-access** — no live evidence yet). Deterministic mocks are test-only via `RAIL_ADAPTER_MODE=mock`.
+- **Settlement Oracle** — Ed25519 signer that attests **adapter-observed** settlement and signs the on-chain release authorization.
 
-> **Status:** Public **v1.0.0** release. MIT-licensed (Nucast Labs). Cardano Preprod evidence + Wise live-sandbox evidence committed in-repo.
+> **Trust model:** Cardano does **not** verify Midnight SNARKs directly — release is authorized by an oracle signature that binds the Midnight settlement receipt hash to the exact escrow UTxO. Read [the trust model](trust-model.md) before integrating.
+
+**Status:** v2.0.0 implementation. The v1.0.0 evidence pages are kept but marked **historical/superseded**.
 
 ## Where to start
 
@@ -15,6 +17,7 @@ Non-custodial **ADA → fiat off-ramps** for Cardano wallets and dApps, powered 
 |---|---|
 | Integrating the SDK into a wallet / dApp | [Integration guide](integration.md) |
 | Standing up the SDK locally | [Quickstart](quickstart.md) |
+| Understanding what each layer proves | [Trust model](trust-model.md) |
 | Reviewing release readiness | [Final testing & release](final-testing-and-release.md) |
 | Reading the protocol | [Architecture](architecture.md) |
 | Looking up a REST endpoint | [API reference](api-reference.md) |
@@ -26,42 +29,44 @@ Non-custodial **ADA → fiat off-ramps** for Cardano wallets and dApps, powered 
 ```bash
 git clone https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments
 cd MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments
-cp .env.example .env       # fill in Blockfrost project id + mnemonics
+cp .env.example .env       # fill in Blockfrost project id + mnemonics + oracle key
 npm install
-bash scripts/fix-libsodium.sh
-npm run dev                 # backend on $API_PORT (default 8801)
-npm run serve:ui            # UI on  $UI_PORT  (default 5181)
+npm run dev                 # backend on $API_PORT (default 8788)
+npm run serve:ui            # UI on http://127.0.0.1:5174
 ```
 
 ```ts
 import { OffRampSDK } from "./sdk/src/index.ts";
+import { createMidnightProofProviderFromEnv } from "./midnight-local-cli/src/index.ts";
 
-const sdk = new OffRampSDK({ senderPkh, operatorPkh });
+const midnightProofProvider = createMidnightProofProviderFromEnv();
+const sdk = new OffRampSDK({ senderPkh, operatorPkh, midnightProofProvider });
 const { initiate, payeeSalt, amountSalt, railQuote } = await sdk.initiateOffRamp({
-  adapter: "cashapp",
-  payeeHandle: "$alice",
+  adapter: "revolut",
+  payeeHandle: "revolut-counterparty",
   amountAda: 2,
   fiatAmount: "1.50",
-  fiatCurrency: "USD",
+  fiatCurrency: "GBP",
 });
 ```
 
-See the full integration walkthrough in the [integration guide](integration.md).
+`midnightProofProvider` is **required** — construction throws without it, and the provider's artifact manifest hash must match the packaged SDK. See the full walkthrough in the [integration guide](integration.md).
 
-## v1.0.0 evidence package
+## Test status (v2.0.0)
 
-- **Repository:** [github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments)
-- **Tagged release:** [v1.0.0](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0)
-- **Final Testing & Release document:** [final-testing-and-release.md](final-testing-and-release.md)
-- **Testnet evidence:** 5 real Preprod transactions — [testnet-evidence.md](testnet-evidence.md)
-- **Internal testing report:** 30/30 simulated off-ramps, **avg prove 751 ms** — [internal-testing-report.md](internal-testing-report.md)
-- **Wise sandbox evidence:** 6 raw provider responses — [sandbox-evidence/README.md](sandbox-evidence/README.md)
-- **Demo recording:** [media/offramp-demo.mp4](media/offramp-demo.mp4)
-- **Specifications:** [Project Initiation](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/Project_Initiation_Document_-_MidnightZK_Off-Ramp_SDK_ADAWeb2_Payments_(Cash_App_Wise).pdf) · [SRS](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/SRS_-_MidnightZK_Off-Ramp_SDK_ADAWeb2_Payments_(Cash_App_Wise).pdf) · [TAD v1.1 — canonical](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/TAD_v1.1.pdf)
+- **Aiken validator:** 25/25 (`npm run cardano:check`)
+- **Lucid emulator suite:** 17/17 ([`sdk/test/escrow-emulator.test.mjs`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/sdk/test/escrow-emulator.test.mjs))
+- **Backend API + oracle:** 15/15 (`npm run test:backend`)
+- **E2E evidence:** [`docs/evidence/v2.0.0/`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/tree/main/docs/evidence/v2.0.0)
 
-## Live MVP (evaluation-window only)
+## Historical v1.0.0 evidence (superseded)
 
-The README and several docs reference TryCloudflare URLs (`*.trycloudflare.com`). Those are **ephemeral quick-tunnels** tied to a local process and may go offline outside the evaluation window. To reproduce locally, follow [the quickstart](quickstart.md).
+The v1.0.0 pages below are retained for the audit trail. Their headline claims were corrected in v2.0.0 — the v1 validator was signature-only (no deadline/settlement enforcement), the v1 SDK proof path was a SHA-256 simulation, the local Midnight run was placeholder-anchored, and the Wise transfer was never funded.
+
+- [Final Testing & Release (v1.0.0, historical)](final-testing-and-release.md)
+- [Cardano Preprod evidence (v1 validator, historical)](testnet-evidence.md)
+- [Internal testing report (simulation harness)](internal-testing-report.md)
+- [Wise sandbox evidence (unfunded transfer)](sandbox-evidence/README.md)
 
 ## License
 

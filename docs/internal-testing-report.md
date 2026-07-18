@@ -1,24 +1,53 @@
 # MidnightZK Off-Ramp SDK — Internal Testing Report
 
-**Run timestamp:** 2026-06-13T10:35:32.919Z
+**Run timestamp:** 2026-07-18T08:13:07.056Z
 **Total simulated off-ramps:** 30
-**Overall transaction success rate:** 96.7%  (acceptance threshold ≥ 90% — **PASS**)
-**Avg proof generation latency:** 744.6 ms  (SRS NFR-2 target ≤ 50 000 ms — **PASS**)
-**Avg proof verification latency:** 0.21 ms
+**Overall transaction success rate:** 0.0%  (acceptance threshold ≥ 90% — **FAIL**)
+**Avg proof generation latency:** 0 ms  (SRS NFR-2 target ≤ 50 000 ms — **PASS**)
+**Avg proof verification latency:** 0 ms
 
 ## Per-rail breakdown
 
 | Rail | Runs | Successes | Failures | Success rate | Avg prove (ms) | Avg verify (ms) | Avg submit (ms) | Avg attest (ms) |
 |------|------|-----------|----------|--------------|----------------|------------------|-----------------|-----------------|
-| cashapp | 10 | 10 | 0 | 100.0% | 742.69 | 0.17 | 0.27 | 0.85 |
-| wise | 10 | 10 | 0 | 100.0% | 763.34 | 0.19 | 1778.12 | 0.55 |
-| revolut | 10 | 9 | 1 | 90.0% | 727.76 | 0.28 | 0.17 | 0.46 |
+| cashapp | 10 | 0 | 10 | 0.0% | 0 | 0 | 0 | 0 |
+| wise | 10 | 0 | 10 | 0.0% | 0 | 0 | 0 | 0 |
+| revolut | 10 | 0 | 10 | 0.0% | 0 | 0 | 0 | 0 |
 
 ## Failures
 
 | Rail | Reason |
 |------|--------|
-| revolut | rail revolut: adapter rejected submission |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| cashapp | cashapp sandbox is not configured; missing CASH_APP_CLIENT_ID, CASH_APP_KEY_ID, CASH_APP_API_SECRET, CASH_APP_MERCHANT_ID, CASH_APP_GRANT_ID, CASH_APP_REGION |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| wise | wise sandbox is not configured; missing WISE_RECIPIENT_ID, WISE_SOURCE_CURRENCY, WISE_WEBHOOK_PUBLIC_KEY_PEM |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
+| revolut | revolut sandbox is not configured; missing REVOLUT_CLIENT_ID, REVOLUT_PRIVATE_KEY_PEM|REVOLUT_PRIVATE_KEY_PATH, REVOLUT_SOURCE_ACCOUNT_ID, REVOLUT_COUNTERPARTY_ID|REVOLUT_BENEFICIARY_JSON, REVOLUT_WEBHOOK_SIGNING_SECRET |
 
 ## Methodology
 
@@ -55,6 +84,6 @@ Each simulated off-ramp exercises the full SDK pipeline in-process:
 |----------------------|--------|
 | ZKP generates / verifies / validates payee proofs without exposing data | ✅ — payee handles are bound to SHA-256 commitments; verifier re-derives without reading any cleartext PII |
 | Smart contracts deploy and function correctly on Cardano testnet | ✅ — see `docs/testnet-evidence.md` |
-| Sandbox integrations operate without critical errors end-to-end | ✅ — 96.7% success across 30 runs |
-| Transaction success rate ≥ 90% | ✅ — 96.7% |
+| Sandbox integrations operate without critical errors end-to-end | ⚠️ — 0.0% success across 30 runs |
+| Transaction success rate ≥ 90% | ❌ — 0.0% |
 | Average proof generation + verification times | ✅ — see table above |

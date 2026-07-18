@@ -19,7 +19,27 @@ const debug = (msg: string, extra?: Record<string, unknown>) => {
   }
 };
 
-export type LastSubmittedTxIdentifiers = { ids: string[] };
+function positiveTimeoutMs(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}: timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 const signTransactionIntents = (
   tx: { intents?: Map<number, any> },
@@ -62,11 +82,16 @@ const signTransactionIntents = (
 
 export const createWalletAndMidnightProvider = async (
   ctx: WalletContext,
-  lastSubmitted: LastSubmittedTxIdentifiers,
 ): Promise<WalletProvider & MidnightProvider> => {
-  let latestSynced = await Rx.firstValueFrom(ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)));
-  ctx.wallet.state().pipe(Rx.filter((s) => s.isSynced)).subscribe((s) => {
-    latestSynced = s;
+  const walletSyncMs = positiveTimeoutMs("MIDNIGHT_WALLET_SYNC_MS", 180_000);
+  const latestSynced = await Rx.firstValueFrom(ctx.wallet.state().pipe(
+    Rx.filter((state) => state.isSynced),
+    Rx.timeout({ first: walletSyncMs }),
+  )).catch((error: unknown) => {
+    if (error instanceof Rx.TimeoutError) {
+      throw new Error(`wallet sync: timed out after ${walletSyncMs}ms`);
+    }
+    throw error;
   });
   return {
     getCoinPublicKey() {
@@ -94,14 +119,7 @@ export const createWalletAndMidnightProvider = async (
         return ctx.wallet.finalizeRecipe(recipe);
       };
       try {
-        const out = await Promise.race([
-          run(),
-          new Promise<never>((_, rej) => {
-            setTimeout(() => {
-              rej(new Error(`balanceTx: timed out after ${balanceMs}ms`));
-            }, balanceMs);
-          }),
-        ]);
+        const out = await withTimeout(run(), balanceMs, 'balanceTx');
         debug('balanceTx: done');
         return out;
       } catch (e) {
@@ -113,7 +131,6 @@ export const createWalletAndMidnightProvider = async (
       debug('submitTx: calling wallet.submitTransaction');
       await ctx.wallet.submitTransaction(tx);
       const ids = tx.identifiers().map((id) => id.toLowerCase());
-      lastSubmitted.ids = [...ids];
       const head = ids[0];
       if (head === undefined) {
         throw new Error('Submitted transaction has no identifiers');
@@ -123,38 +140,6 @@ export const createWalletAndMidnightProvider = async (
     },
   };
 };
-
-function wrapIndexerWatchForTxData(
-  base: ReturnType<typeof indexerPublicDataProvider>,
-  lastSubmitted: LastSubmittedTxIdentifiers,
-): ReturnType<typeof indexerPublicDataProvider> {
-  const perIdMs = Number.parseInt(process.env.MIDNIGHT_WATCH_TX_PER_ID_MS ?? '180000', 10);
-  return {
-    ...base,
-    async watchForTxData(txId: string) {
-      const normalized = txId.toLowerCase();
-      const ordered = lastSubmitted.ids.length > 0 ? lastSubmitted.ids : [normalized];
-      const candidates = [...new Set([ordered[0], ordered[ordered.length - 1], ...ordered])];
-      debug('watchForTxData: trying segment ids', { count: candidates.length, perIdMs });
-      let lastErr: unknown;
-      for (const id of candidates) {
-        try {
-          return await Promise.race([
-            base.watchForTxData(id),
-            new Promise<never>((_, rej) => {
-              setTimeout(() => {
-                rej(new Error(`watchForTxData: no indexer match within ${perIdMs}ms for identifier ${id}`));
-              }, perIdMs);
-            }),
-          ]);
-        } catch (e) {
-          lastErr = e;
-        }
-      }
-      throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
-    },
-  };
-}
 
 function wrapProofProvider(base: ProofProvider): ProofProvider {
   return {
@@ -190,8 +175,7 @@ export async function configureMidnightContractProviders<
     privateStateId: PrivateStateId;
   },
 ) {
-  const lastSubmitted: LastSubmittedTxIdentifiers = { ids: [] };
-  const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx, lastSubmitted);
+  const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
   const zkConfigProvider = new NodeZkConfigProvider<CircuitId>(options.artifactsDir);
   const basePublicDataProvider = indexerPublicDataProvider(config.indexer, config.indexerWS);
   return {
@@ -201,7 +185,7 @@ export async function configureMidnightContractProviders<
       privateStoragePasswordProvider: async () => ldbPassword(),
       accountId: walletAndMidnightProvider.getCoinPublicKey(),
     }),
-    publicDataProvider: wrapIndexerWatchForTxData(basePublicDataProvider, lastSubmitted),
+    publicDataProvider: basePublicDataProvider,
     zkConfigProvider,
     proofProvider: wrapProofProvider(httpClientProofProvider(config.proofServer, zkConfigProvider)),
     walletProvider: walletAndMidnightProvider,

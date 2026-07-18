@@ -55,7 +55,7 @@ Per-post metrics read directly from the account's X Analytics panels — screens
 
 ![Post #5 — Discord launch announcement, Jun 20](evidence/discord-announcement-jun20.jpeg)
 
-> **Method note.** Public like/repost/reply counts on the four X post URLs are independently verifiable by any reviewer without an X login. Impressions, detail expands, profile visits, and X's composite "engagements" metric are owner-visible in X Analytics and are evidenced by the committed screenshots above (captured 2026-07-02). Discord reaction counts are read directly from the announcement message.
+> **Method note.** Public like/repost/reply counts on the four X post URLs are independently verifiable by anyone without an X login. Impressions, detail expands, profile visits, and X's composite "engagements" metric are owner-visible in X Analytics and are evidenced by the committed screenshots above (captured 2026-07-02). Discord reaction counts are read directly from the announcement message.
 
 ## Open community testing call
 

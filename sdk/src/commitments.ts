@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { artifactManifestHash } from "./midnight/receipt.js";
 
 const DOMAIN_PAYEE = "offramp:payee:v1";
 const DOMAIN_AMOUNT = "offramp:amount:v1";
@@ -6,9 +7,6 @@ const DOMAIN_INTENT = "offramp:intent:v1";
 const DOMAIN_ADAPTER = "offramp:adapter:v1";
 const DOMAIN_QUOTE = "offramp:quote:v1";
 const DOMAIN_SETTLEMENT = "offramp:settlement:v1";
-const DOMAIN_VK = "offramp:vk:v1";
-
-const VK_HASH = sha256Hex(Buffer.from(`${DOMAIN_VK}|offramp.compact|v0.1.0`, "utf8"));
 const CIRCUIT_ID = "offramp:v1";
 
 export function sha256Hex(buf: Buffer): string {
@@ -130,7 +128,7 @@ export function settlementDigest(input: {
 }
 
 export function vkHash(): string {
-  return VK_HASH;
+  return artifactManifestHash();
 }
 
 export function circuitId(): string {

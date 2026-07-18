@@ -6,20 +6,43 @@
  * over the deterministic JSON canonicalization of the attestation body using
  * the operator key from `OPERATOR_ED25519_SK_HEX`.
  *
- * The current build runs an in-process oracle that produces deterministic
- * attestations. A future revision will split this into a distinct service
- * binary with key rotation + persistence.
+ * Security posture:
+ *  - No development-secret defaults: both `RAIL_WEBHOOK_HMAC_KEY` and
+ *    `OPERATOR_ED25519_SK_HEX` are required; every entry point fails closed
+ *    when they are absent.
+ *  - All MAC / digest comparisons are constant-time.
+ *  - `verifyAttestation` recomputes the settlement digest from the attested
+ *    fields; a signature over a mismatched digest never verifies.
+ *  - The signed attestation body already binds the provider reference via
+ *    `rail_tx_ref` (the `OracleAttestation` type carries no further adapter
+ *    fields, and the Aiken-side release-authorization message format is owned
+ *    by `cardano/escrow_script` and is reused unchanged here).
  */
-import { createHash, createHmac, sign as edSign, verify as edVerify, createPrivateKey, createPublicKey, KeyObject } from "node:crypto";
-import { settlementDigest } from "../commitments.ts";
-import type { OracleAttestation } from "../types.ts";
+import {
+  createHash,
+  createHmac,
+  sign as edSign,
+  verify as edVerify,
+  createPrivateKey,
+  createPublicKey,
+  timingSafeEqual,
+  KeyObject,
+} from "node:crypto";
+import { settlementDigest } from "../commitments.js";
+import type { OracleAttestation } from "../types.js";
 
-const ADAPTER_HMAC_KEY = process.env.RAIL_WEBHOOK_HMAC_KEY ?? "offramp-dev-shared-hmac-key";
+function adapterHmacKey(): string {
+  const key = process.env.RAIL_WEBHOOK_HMAC_KEY?.trim();
+  if (!key) {
+    throw new Error("RAIL_WEBHOOK_HMAC_KEY is not configured; refusing to verify adapter webhooks (fail closed)");
+  }
+  return key;
+}
 
 function sk32(): Buffer {
-  const hex = process.env.OPERATOR_ED25519_SK_HEX ?? "";
-  if (hex.length !== 64) {
-    throw new Error("OPERATOR_ED25519_SK_HEX must be 32-byte hex (64 chars)");
+  const hex = (process.env.OPERATOR_ED25519_SK_HEX ?? "").trim();
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error("OPERATOR_ED25519_SK_HEX must be 32-byte hex (64 chars); refusing to sign (fail closed)");
   }
   return Buffer.from(hex, "hex");
 }
@@ -48,17 +71,42 @@ export function operatorPublicKeyHex(): string {
   return der.subarray(der.length - 32).toString("hex");
 }
 
+/** Constant-time comparison of two hex strings (length mismatch is not secret). */
+function constantTimeHexEqual(a: string, b: string): boolean {
+  if (!/^[0-9a-f]+$/i.test(a) || !/^[0-9a-f]+$/i.test(b)) return false;
+  if (a.length !== b.length) return false;
+  const bufA = Buffer.from(a, "hex");
+  const bufB = Buffer.from(b, "hex");
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
 export function verifyAdapterWebhook(payload: Record<string, unknown>, providedHmac: string): boolean {
-  const expected = createHmac("sha256", ADAPTER_HMAC_KEY)
+  const expected = createHmac("sha256", adapterHmacKey())
     .update(JSON.stringify(payload))
     .digest("hex");
-  return expected === providedHmac;
+  return constantTimeHexEqual(expected, providedHmac);
 }
 
 function canonicalize(obj: Record<string, unknown>): string {
   // Stable JSON: sorted keys, no whitespace.
   const keys = Object.keys(obj).sort();
   return "{" + keys.map((k) => JSON.stringify(k) + ":" + JSON.stringify(obj[k])).join(",") + "}";
+}
+
+function attestationBody(att: {
+  intentId: string;
+  railTxRef: string;
+  status: "SETTLED" | "FAILED";
+  settlementDigest: string;
+  signedAt: number;
+}): Record<string, unknown> {
+  return {
+    intent_id: att.intentId,
+    rail_tx_ref: att.railTxRef,
+    status: att.status,
+    settlement_digest: att.settlementDigest,
+    signed_at: att.signedAt,
+  };
 }
 
 export function attestSettlement(input: {
@@ -68,13 +116,7 @@ export function attestSettlement(input: {
 }): OracleAttestation {
   const signedAt = Math.floor(Date.now() / 1000);
   const digest = settlementDigest({ ...input, signedAt });
-  const body = {
-    intent_id: input.intentId,
-    rail_tx_ref: input.railTxRef,
-    status: input.status,
-    settlement_digest: digest,
-    signed_at: signedAt,
-  };
+  const body = attestationBody({ ...input, settlementDigest: digest, signedAt });
   const { priv } = keys();
   const sig = edSign(null, Buffer.from(canonicalize(body), "utf8"), priv);
   return {
@@ -88,15 +130,41 @@ export function attestSettlement(input: {
 }
 
 export function verifyAttestation(att: OracleAttestation): boolean {
-  const body = {
-    intent_id: att.intentId,
-    rail_tx_ref: att.railTxRef,
+  if (att.status !== "SETTLED" && att.status !== "FAILED") return false;
+  if (!Number.isSafeInteger(att.signedAt) || att.signedAt < 0) return false;
+  if (!/^[0-9a-f]{128}$/i.test(att.signature ?? "")) return false;
+  // Recompute the settlement digest from the attested fields — a signature over
+  // a caller-supplied digest that does not match the fields must never verify.
+  const recomputed = settlementDigest({
+    intentId: att.intentId,
+    railTxRef: att.railTxRef,
     status: att.status,
-    settlement_digest: att.settlementDigest,
-    signed_at: att.signedAt,
-  };
+    signedAt: att.signedAt,
+  });
+  if (!constantTimeHexEqual(recomputed, att.settlementDigest ?? "")) return false;
+  const body = attestationBody({
+    intentId: att.intentId,
+    railTxRef: att.railTxRef,
+    status: att.status,
+    settlementDigest: recomputed,
+    signedAt: att.signedAt,
+  });
   const { pub } = keys();
   return edVerify(null, Buffer.from(canonicalize(body), "utf8"), pub, Buffer.from(att.signature, "hex"));
+}
+
+/**
+ * Ed25519-sign the exact release-authorization message bytes produced by
+ * `releaseAuthorizationMessageCbor` (canonical bytes owned by the Aiken
+ * escrow_script; this function only signs — it never re-encodes them).
+ */
+export function signReleaseAuthorization(authorizationMessageCborHex: string): string {
+  const hex = authorizationMessageCborHex.trim().toLowerCase();
+  if (!/^[0-9a-f]+$/.test(hex) || hex.length === 0 || hex.length % 2 !== 0) {
+    throw new Error("authorization message must be non-empty hex-encoded CBOR bytes");
+  }
+  const { priv } = keys();
+  return edSign(null, Buffer.from(hex, "hex"), priv).toString("hex");
 }
 
 export function attestationFingerprint(att: OracleAttestation): string {

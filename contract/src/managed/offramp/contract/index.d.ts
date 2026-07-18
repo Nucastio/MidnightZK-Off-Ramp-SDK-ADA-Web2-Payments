@@ -56,6 +56,9 @@ export type Ledger = {
   readonly l1Anchor: Uint8Array;
   readonly complianceFlag: Uint8Array;
   readonly settlementDigest: Uint8Array;
+  readonly payeeBound: boolean;
+  readonly amountBound: boolean;
+  readonly complianceProved: boolean;
 }
 
 export type ContractReferenceLocations = any;

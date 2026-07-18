@@ -1,116 +1,96 @@
 # Final Testing & Release Document
 
-This document consolidates every test artefact for the **MidnightZK Off-Ramp SDK** at the **`v1.0.0`** public release, plus the links to the released SDK and the hosted documentation site, so a reviewer can verify "the SDK is operational without any major errors" from one page.
+!!! warning "Historical v1.0.0 document — superseded by v2.0.0"
+    This page consolidated the test artefacts for the **v1.0.0** public release and is retained for the audit trail. It has been superseded by the v2.0.0 implementation. Headline corrections to the claims below:
+
+    - The "proof generation" latencies (744.6 ms avg) were measured on a **SHA-256 digest simulation**, not SNARK execution. v2 removed the simulation: the SDK requires a real `MidnightProofProvider` and fails closed without one.
+    - The "29/30 (96.7%)" success table came from the **mock-adapter simulation harness**, not live rails.
+    - The five Preprod transactions ran against the **old signature-only validator**; the early REFUND succeeding demonstrates the **missing deadline enforcement**, and the RELEASE verified nothing beyond an operator signature.
+    - The Wise sandbox transfer `2147582543` was created but **never funded** (SCA-gated; final state `incoming_payment_waiting`).
+    - The Midnight deployment was a **placeholder-anchored local devnet run**, not bound to a real Cardano lock.
+
+    **Current (v2.0.0) verification:** Aiken validator **25/25** (`npm run cardano:check`) · Lucid emulator suite **17/17** (`sdk/test/escrow-emulator.test.mjs`) · backend API + oracle **15/15** (`npm run test:backend`) · `npm run typecheck` passes · E2E evidence in [`docs/evidence/v2.0.0/`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/tree/main/docs/evidence/v2.0.0).
 
 | Item | Status |
 |---|---|
-| Tagged release | **v1.0.0** — [GitHub Release](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0) |
+| Tagged release | **v1.0.0** — [GitHub Release](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0) (superseded by the remediated v2.0.0 implementation on `main`) |
 | Hosted developer docs | <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/> |
 | Public GitHub repository | <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments> |
 | Recorded demo walkthrough | [`docs/media/offramp-demo.mp4`](media/offramp-demo.mp4) |
 
 ---
 
-## 1. Internal testing (fresh re-run, 2026-06-13)
+## 1. Internal testing — v1.0.0 simulation harness (historical)
 
-A fresh run of the internal harness (`npm run test:internal`) was executed against the v1.0.0 build immediately before tagging the release. Result: **29 / 30 successes (96.7%)**, comfortably above the ≥ 90% acceptance threshold. The single failure is an **intentional negative-path** (the mock-mode adapters inject a ~4–6% adapter-rejection rate to exercise the `RailError` path in `submitPayment`).
+> **Label:** these numbers were produced by the in-process **simulation harness** (`RAIL_ADAPTER_MODE=mock`, SHA-digest "proof" path). They are not live-rail or SNARK measurements. Real test counts for v2.0.0 are in the banner above.
+
+A run of `npm run test:internal` against the v1.0.0 build reported **29 / 30 simulated successes (96.7%)**; the single failure was the mock adapters' intentional ~4–6% rejection injection exercising the `RailError` path.
 
 **Run timestamp:** `2026-06-13T10:35:32.919Z`
-**Total simulated off-ramps:** 30 (10 × cashapp / wise / revolut)
-**Overall success rate:** **96.7%** — PASS (threshold ≥ 90%)
-**Avg proof-generation latency:** **744.6 ms** — PASS (NFR-2 budget ≤ 50 000 ms)
-**Avg proof-verification latency:** 0.21 ms
+**Total simulated off-ramps:** 30 (10 × cashapp / wise / revolut, all mock adapters)
+**Simulated success rate:** 96.7%
+**Avg simulated "prove" latency:** 744.6 ms — **this measured the SHA-256 simulation, not SNARK proving**, so it does not evidence the NFR-2 (≤ 50 s) budget for real proofs. Real Midnight proving times for v2 are recorded in the E2E evidence (`docs/evidence/v2.0.0/`).
 
-| Rail | Runs | Successes | Failures | Success rate | Avg prove (ms) | Avg verify (ms) | Avg submit (ms) | Avg attest (ms) |
-|------|------|-----------|----------|--------------|----------------|------------------|-----------------|-----------------|
-| cashapp | 10 | 10 | 0 | 100.0% | 742.69 | 0.17 | 0.27 | 0.85 |
-| wise | 10 | 10 | 0 | 100.0% | 763.34 | 0.19 | 1778.12 | 0.55 |
-| revolut | 10 | 9 | 1 | 90.0% | 727.76 | 0.28 | 0.17 | 0.46 |
+| Rail | Runs | Successes | Failures | Success rate | Avg "prove" (ms, simulated) | Avg submit (ms, mock) |
+|------|------|-----------|----------|--------------|----------------------------|-----------------------|
+| cashapp | 10 | 10 | 0 | 100.0% | 742.69 | 0.27 |
+| wise | 10 | 10 | 0 | 100.0% | 763.34 | 1778.12 |
+| revolut | 10 | 9 | 1 | 90.0% | 727.76 | 0.17 |
 
-The full report (per-step latency, methodology, issues-and-fixes) is in [`internal-testing-report.md`](internal-testing-report.md).
+## 2. Cardano Preprod — v1 validator (historical, superseded)
 
-> Reproduce: `npm run test:internal` from a clean checkout. Rewrites `docs/internal-testing-report.md` + `data/testing-report.json`.
+Five Preprod transactions were submitted against the **v1 signature-only validator** (script `addr_test1wrvzmkxhfmr9j0u8g6p4cpkevqja4tn8qr88z7l7nc2tqrsxln25g`). They are listed with corrections in [`testnet-evidence.md`](testnet-evidence.md). Contrary to the original wording, they did **not** exercise a "full validator surface": the v1 validator had no deadline, settlement, destination, or value checks — the early REFUND that was accepted is itself evidence of the missing deadline enforcement.
 
-## 2. Cardano Preprod end-to-end
+The v2 validator (oracle-signed UTxO-bound release authorization, deadline-gated refund, exact destinations, full value preservation) is verified by **25/25 Aiken tests** and the **17/17 Lucid emulator suite**, and on Preprod by the E2E runs in `docs/evidence/v2.0.0/`.
 
-Five real Preprod transactions exercise the **full validator surface** (LOCK / REFUND / RELEASE for both Cash App and Wise paths). All five are confirmed on-chain and linked from [`testnet-evidence.md`](testnet-evidence.md):
+## 3. Wise sandbox — v1 evidence (historical; transfer unfunded)
 
-| Step | Adapter | Tx hash | Cardanoscan |
-|------|---------|---------|-------------|
-| LOCK #1 | Cash App | `f26f023dfc809cb1adad4830bae0025cbe1334fae9811c7a036239eb85fbc6c3` | [view](https://preprod.cardanoscan.io/transaction/f26f023dfc809cb1adad4830bae0025cbe1334fae9811c7a036239eb85fbc6c3) |
-| REFUND  | sender-signed | `a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9` | [view](https://preprod.cardanoscan.io/transaction/a8c50ba93412a26c5401dc4477ea6307ad56c808c99a174ab8a69c7675c6d0b9) |
-| LOCK #2 | Wise | `03089ef869daf44c511539c915bc825435c18770071aa923322b43b29dc3b869` | [view](https://preprod.cardanoscan.io/transaction/03089ef869daf44c511539c915bc825435c18770071aa923322b43b29dc3b869) |
-| LOCK #3 | Wise | `b55e48084290f6b88b8fd6489f40e65acc50664fba4873feb1248dffbcb64ac2` | [view](https://preprod.cardanoscan.io/transaction/b55e48084290f6b88b8fd6489f40e65acc50664fba4873feb1248dffbcb64ac2) |
-| RELEASE | operator-signed | `c84c242d6f86dbdac54ded62c92bbdc88b5725722d1691728854e20d62bd3168` | [view](https://preprod.cardanoscan.io/transaction/c84c242d6f86dbdac54ded62c92bbdc88b5725722d1691728854e20d62bd3168) |
+The v1 Wise sandbox run created real provider objects (profile `30539072`, quote `fedc7ae5-…`, recipient `702406717`, transfer `2147582543`) but the transfer was **never funded**: the funding call returned 403 (SCA-gated) and the final observed state was `incoming_payment_waiting`. Raw captures remain under [`docs/sandbox-evidence/`](sandbox-evidence/README.md).
 
-- **Validator:** [`cardano/escrow/validators/escrow.ak`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/cardano/escrow/validators/escrow.ak), Plutus V3, Aiken v1.1.21.
-- **Script address (Preprod):** `addr_test1wrvzmkxhfmr9j0u8g6p4cpkevqja4tn8qr88z7l7nc2tqrsxln25g`
-- **Datum shape recorded on-chain:** `intent_id`, `payee_commitment`, `amount_commitment`, `adapter_tag`, `sender_pkh`, `operator_pkh`, `deadline`, `vk_hash`, `principal_lovelace` (each LOCK tx in the table above carries a concrete instance).
+**v2 status of the adapters:**
 
-## 3. Wise sandbox — live provider integration
+- **Wise** — rewritten as a strict sandbox client: provider quote-bound transfer creation, deterministic idempotency, authenticated status polling, webhook signature verification, **no mock fallback**. Fresh evidence requires a fresh `WISE_API_TOKEN` (pending).
+- **Revolut** — live sandbox **verified**: a real sandbox payment was completed through the adapter (refresh-token OAuth grant; JWT `iss` = certificate redirect-URI domain).
+- **Cash App** — implemented against the **official Cash App Payouts API**; this is an early-access partner product and remains **credential-gated** — it must not be represented as live-evidenced.
 
-The Wise sandbox adapter was driven end-to-end against the public Wise sandbox (`https://api.sandbox.transferwise.tech`) with `RAIL_ADAPTER_MODE=sandbox`. Six raw provider request/response captures are committed under [`docs/sandbox-evidence/`](sandbox-evidence/README.md), demonstrating real off-ramp flows when credentials are configured.
+## 4. Midnight ZK circuit — v1 local run (historical; placeholder-anchored)
 
-| Step | File | API path | Method | HTTP |
-|------|------|----------|--------|------|
-| 1. List profiles | `01-profiles.json` | `/v1/profiles` | GET | 200 |
-| 2. Create quote (USD → USD, 1.50) | `02-quote.json` | `/v3/profiles/{id}/quotes` | POST | 200 |
-| 3. Create recipient | `03-recipient.json` | `/v1/accounts` | POST | 200 |
-| 4. Create transfer | `04-transfer.json` | `/v1/transfers` | POST | 200 |
-| 5. Fund transfer | `05-fund.json` | `/v3/profiles/{id}/transfers/{tid}/payments` | POST | 403 (SCA-gated; provider-side) |
-| 6. Check transfer status | `06-status.json` | `/v1/transfers/{tid}` | GET | 200 |
-
-**Real Wise transfer:** `2147582543`, sandbox profile `30539072`, quote `fedc7ae5-c015-4e37-bb71-404104419610`, recipient `702406717`. Status `incoming_payment_waiting` (the documented Wise state for an unfunded transfer; funding completion requires either an OAuth-token profile or Wise SCA approval and is provider-side).
-
-> Cash App uses **Afterpay sandbox** semantics — canonical provider reference: <https://www.postman.com/afterpay-1-426879/afterpay-online-apis-v2/folder/zohg5nd/checkouts>. Revolut follows the same `RailAdapter` interface and is ready for credentials.
-
-## 4. Midnight ZK circuit deployment
-
-- **Compact source:** [`contract/src/offramp.compact`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/contract/src/offramp.compact)
-- **Compiled artefacts (committed):** [`contract/src/managed/`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/tree/main/contract/src/managed)
-- **Predicates:** `provePayeeBinding`, `proveAmountBinding`, `proveComplianceFlag`, `proveOffRampSettlement`
-- **Contract address:** `a3a72a55eb37317300a6c0718578a8e82040dacce3f139e23e1f52af99f77030`
-- **Deploy tx:** `bb81cf19…6e9f2` (block 15768)
-- **4 SNARK proofs** deployed across blocks 15774→15784 (per-block detail in [`testnet-evidence.md`](testnet-evidence.md)).
+The v1 local-devnet deployment (contract `a3a72a55…`, blocks 15768→15784) produced real SNARK proofs on a local node but was **placeholder-anchored** — not bound to any real Cardano lock. See the corrected record in [`testnet-evidence.md`](testnet-evidence.md). In v2, `bindOffRampIntent` anchors the real Cardano lock tx and receipts carry finalized Midnight tx/block/state data pinned by the 23-asset artifact manifest hash.
 
 ## 5. Backend API
 
-`tsx backend/api/main.ts` boots a Hono HTTP server that serves the entire off-ramp lifecycle as REST. The OpenAPI 3.0.3 spec is generated by [`backend/api/openapi.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/backend/api/openapi.ts) and exposed live at `/docs` (Swagger UI) and `/api/openapi.json` (machine-readable). All routes are documented in the [API reference](api-reference.md).
+`npm run dev` boots the Hono server (default port **8788**) serving the lifecycle as REST with a state machine, per-intent capability-token auth, adapter-observed settlement, and PII-redacting persistence — 15/15 tests. OpenAPI at `/docs` (Swagger) and `/api/openapi.json`. All routes documented in the [API reference](api-reference.md). The v1 TryCloudflare "live MVP" tunnels are offline (they were ephemeral evaluation-window tunnels).
 
-A live evaluation-window deployment is fronted by a TryCloudflare tunnel — see the [README](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments#live-mvp-evaluation-window-only) for the current URL. The tunnel is ephemeral; reproducing the run requires only `npm run dev` per the [quickstart](quickstart.md).
-
-## 6. Issues fixed before release
+## 6. Issues fixed before the v1.0.0 release (historical)
 
 | Issue | Fix | Where |
 |---|---|---|
-| `libsodium-wrappers-sumo` ESM resolution — npm publish layout puts `libsodium-sumo.mjs` in a sibling package; ESM build expects it next to `libsodium-wrappers.mjs`. | One-time shell fixup that copies the file into the expected location. | [`scripts/fix-libsodium.sh`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/fix-libsodium.sh) |
-| Mock-mode rail rejection wasn't reflected in the harness summary cleanly. | Per-rail success-rate column + dedicated "Failures" section in the regenerated report. | [`scripts/internal-test.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/internal-test.ts) |
-| Wise sandbox `/payments` SCA-gating. | Documented as expected provider-side behaviour; the SDK's responsibility ends at submitting the funding intent. | [`docs/sandbox-evidence/README.md`](sandbox-evidence/README.md) §"Step 5 note" |
+| `libsodium-wrappers-sumo` ESM resolution | One-time shell fixup copying the file into the expected location (now run automatically on `npm install`). | [`scripts/fix-libsodium.sh`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/fix-libsodium.sh) |
+| Mock-mode rail rejection wasn't reflected in the harness summary | Per-rail success-rate column + "Failures" section in the regenerated report. | [`scripts/internal-test.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/internal-test.ts) |
+| Wise sandbox `/payments` SCA-gating | Documented as provider-side; **correction:** this left the v1 transfer unfunded, so the v1 Wise evidence shows an accepted-but-unfunded transfer, not a settled payout. | [`docs/sandbox-evidence/README.md`](sandbox-evidence/README.md) |
 
-## 7. Acceptance-criteria checklist
+## 7. Acceptance-criteria checklist — corrected
 
-| Milestone criterion | Result | Evidence |
+| Milestone criterion | v1.0.0 claim | Corrected status |
 |---|---|---|
-| Comprehensive developer docs published (integration, API reference, examples) | ✅ | [Docs site](https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/) — index / quickstart / integration / api-reference / sdk-reference / examples / architecture |
-| Final testing + release document with all test results, SDK link, docs link | ✅ | This page |
-| Public GitHub repository with final SDK & docs | ✅ | <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments> |
-| Recorded demo walkthrough video | ✅ | [`docs/media/offramp-demo.mp4`](media/offramp-demo.mp4) |
-| Tagged release v1.0.0 | ✅ | [Release](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0) |
-| Transaction success rate ≥ 90% | ✅ | 96.7% (29 / 30) — §1 above |
-| Proof generation ≤ 50 000 ms (NFR-2) | ✅ | 744.6 ms avg — §1 above |
-| Smart contracts deploy and function on Cardano testnet | ✅ | 5 Preprod txs — §2 above |
-| Real sandbox provider integration | ✅ | Wise transfer `2147582543` — §3 above |
-| Midnight ZK circuit deployed | ✅ | 4 SNARK proofs in blocks 15774→15784 — §4 above |
+| Comprehensive developer docs published | ✅ | ✅ — docs since rewritten to match the remediated implementation |
+| Final testing + release document | ✅ | This page (historical) + the v2 banner above |
+| Public GitHub repository | ✅ | ✅ |
+| Recorded demo walkthrough video | ✅ | ✅ (shows the v1 flow) |
+| Tagged release | ✅ v1.0.0 | v1.0.0 superseded; remediated implementation on `main` |
+| Transaction success rate ≥ 90% | "96.7%" | **Simulation-harness figure** (mock adapters). Real v2 counts: 25/25 Aiken, 17/17 emulator, 15/15 backend; E2E runs in `docs/evidence/v2.0.0/` |
+| Proof generation ≤ 50 000 ms (NFR-2) | "744.6 ms avg" | **Simulated** (SHA digest, not SNARK). Real proving latency recorded in v2 E2E evidence |
+| Smart contracts deploy and function on Cardano testnet | "5 Preprod txs" | v1 txs exercised a signature-only validator; the enforcing v2 validator is test-covered (25 + 17) with E2E Preprod evidence in `docs/evidence/v2.0.0/` |
+| Real sandbox provider integration | "Wise transfer `2147582543`" | v1 Wise transfer was **unfunded**. v2: **Revolut live sandbox verified** (real payment completed); Wise strict client pending a fresh token; Cash App credential-gated |
+| Midnight ZK circuit deployed | "4 SNARK proofs" | v1 run was local + placeholder-anchored; v2 receipts carry finalized, lock-anchored Midnight txs |
 
 ## 8. Released artefacts
 
-- **`v1.0.0` GitHub Release** — source archive: <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0>
+- **`v1.0.0` GitHub Release** (superseded) — <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0>
 - **MIT LICENSE** — <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/LICENSE>
 - **CHANGELOG** — <https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/CHANGELOG.md>
 - **Specifications:** [Project Initiation](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/Project_Initiation_Document_-_MidnightZK_Off-Ramp_SDK_ADAWeb2_Payments_(Cash_App_Wise).pdf) · [SRS](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/SRS_-_MidnightZK_Off-Ramp_SDK_ADAWeb2_Payments_(Cash_App_Wise).pdf) · [TAD v1.1 (canonical)](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/TAD_v1.1.pdf)
 
 ## 9. Documentation link
 
-**Hosted developer documentation:** <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/>
-
-Rebuilt automatically on every change to `docs/` or `mkdocs.yml` via [`.github/workflows/docs.yml`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/.github/workflows/docs.yml). The site covers integration, API reference, SDK reference, runnable examples, architecture, and the test/release evidence — sufficient for an external team to integrate the SDK without reading the source.
+**Hosted developer documentation:** <https://nucastio.github.io/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/> — rebuilt automatically on every change to `docs/` or `mkdocs.yml` via [`.github/workflows/docs.yml`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/.github/workflows/docs.yml). Start with the [trust model](trust-model.md) for an honest statement of what each layer proves.

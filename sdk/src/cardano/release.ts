@@ -1,50 +1,75 @@
-import type { AppLucid } from "./lucid_client.ts";
+import type { AppLucid } from "./lucid_client.js";
 import {
-  RELEASE_REDEEMER,
   escrowScript,
-  escrowScriptAddress,
-} from "./escrow_script.ts";
+  paymentPkhFromAddress,
+  posixTimeToNumber,
+  releaseAuthorizationMessageCbor,
+  releaseRedeemerCbor,
+  resolveEscrowUtxo,
+  validateReleaseAuthorization,
+  type EscrowOutRef,
+  type ReleaseAuthorizationIn,
+} from "./escrow_script.js";
+
+// Tolerance for a local clock running ahead of the chain tip. Configurable so
+// emulator environments (whose slot zero is process start) can disable it.
+// Read lazily: test files set the env var after module imports are hoisted.
+function releaseClockSkewMs(): number {
+  return Number(process.env.CARDANO_RELEASE_CLOCK_SKEW_MS ?? "120000");
+}
 
 export interface ReleaseResult {
   txHash: string;
+  authorizationMessageCbor: string;
 }
 
 /**
- * Build & submit the RELEASE transaction: spend the escrow UTxO using the
- * operator's wallet. Validator path `Release` requires the operator signature
- * in `extra_signatories`.
- *
- * A future revision will additionally carry `(proof_bytes, public_inputs,
- * oracle_attestation)` in the redeemer so the validator can verify the ZK
- * proof + oracle attestation on-chain; the interface stays identical.
+ * Release the complete escrow asset bundle to the enterprise address derived
+ * from the datum's operator key hash. Transaction fees must be supplied by a
+ * separate operator-wallet input; none are deducted from the script input.
  */
 export async function submitReleaseTx(
   lucid: AppLucid,
-  scriptUtxoRef: { txHash: string; outputIndex: number },
-  payoutAddress: string,
-  payoutLovelace: bigint,
+  scriptUtxoRef: EscrowOutRef,
+  authorizationInput: ReleaseAuthorizationIn,
 ): Promise<ReleaseResult> {
-  const network = lucid.config().network;
-  if (!network) throw new Error("Lucid network is not configured");
-  const script = escrowScript();
-  const scriptAddress = escrowScriptAddress(network, script);
-  const utxos = await lucid.utxosByOutRef([scriptUtxoRef]);
-  if (utxos.length === 0) throw new Error("Escrow UTxO not found at script address: " + scriptAddress);
-  const operatorAddr = await lucid.wallet().address();
+  const authorization = validateReleaseAuthorization(authorizationInput);
+  const resolved = await resolveEscrowUtxo(lucid, scriptUtxoRef);
+  const operatorWalletAddress = await lucid.wallet().address();
+  if (paymentPkhFromAddress(operatorWalletAddress) !== resolved.datum.operatorPkh) {
+    throw new Error("connected wallet does not match escrow datum.operatorPkh");
+  }
 
-  // Use `addSigner(addr)` rather than `addSignerKey(pkh)`. The latter trips a
-  // Lucid Evolution 0.4.29 wasm-serializer issue (`Cannot perform
-  // %TypedArray%.prototype.set on a detached ArrayBuffer`) on PlutusV3 script
-  // spends; `addSigner` produces the same `extra_signatories` entry the
-  // validator expects without exercising that code path.
+  const deadline = posixTimeToNumber("datum.deadline", resolved.datum.deadline);
+  const authorizationExpiry = posixTimeToNumber(
+    "authorization.authorizationExpiry",
+    authorization.authorizationExpiry,
+  );
+  // Back-date validFrom to tolerate local clock skew ahead of the chain tip;
+  // the validator only requires the interval to end before deadline/expiry.
+  const validFrom = Date.now() - releaseClockSkewMs();
+  const validTo = Math.min(deadline, authorizationExpiry);
+  if (Date.now() >= validTo) {
+    throw new Error("release authorization is expired or escrow deadline has been reached");
+  }
+
+  const authorizationMessageCbor = releaseAuthorizationMessageCbor(
+    resolved.datum,
+    scriptUtxoRef,
+    authorization,
+  );
+  const redeemer = releaseRedeemerCbor(authorization);
+  const script = escrowScript();
   const signed = await lucid
     .newTx()
-    .collectFrom(utxos, RELEASE_REDEEMER)
+    .collectFrom([resolved.utxo], redeemer)
     .attach.SpendingValidator(script)
-    .addSigner(operatorAddr)
-    .pay.ToAddress(payoutAddress, { lovelace: payoutLovelace })
+    .addSigner(operatorWalletAddress)
+    .validFrom(validFrom)
+    .validTo(validTo)
+    .pay.ToAddress(resolved.operatorAddress, { ...resolved.utxo.assets })
     .complete()
-    .then((tb) => tb.sign.withWallet().complete());
+    .then((tx) => tx.sign.withWallet().complete());
 
-  return { txHash: await signed.submit() };
+  return { txHash: await signed.submit(), authorizationMessageCbor };
 }

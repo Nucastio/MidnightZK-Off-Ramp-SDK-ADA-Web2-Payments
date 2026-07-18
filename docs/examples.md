@@ -1,105 +1,104 @@
 # Examples
 
-Three runnable end-to-end scenarios. Each one is grounded in a script that ships in the repo.
+Runnable end-to-end scenarios, each grounded in a script that ships in the repo.
 
-## Example 1 — Cash App LOCK → simulated settlement → RELEASE
+## Example 1 — Full happy-path E2E (Preprod + Midnight + Revolut sandbox)
 
-Lifecycle: **Initiate → LOCK (Preprod) → Prove → Submit (mock) → Settle → RELEASE (Preprod)**.
-
-Run via:
+Lifecycle: **Initiate → LOCK (Preprod) → Midnight intent receipt → Revolut sandbox payout → adapter-observed settlement → Midnight settlement receipt → oracle-signed release authorization → RELEASE (Preprod)**.
 
 ```bash
-# 1. Real LOCK on Preprod
-npm run preprod:lock -- cashapp '$alice' 1.50 USD
-# prints lockTxHash + Cardanoscan link
-
-# 2. RELEASE (operator-signed)
-npm run preprod:release -- <lockTxHash>
+npx tsx scripts/e2e-preprod.ts
+# evidence → docs/evidence/v2.0.0/e2e-run-1.json + e2e-run-1.md
 ```
 
-Source: [`scripts/preprod-lock.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/preprod-lock.ts) + [`scripts/preprod-release.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/preprod-release.ts).
+Source: [`scripts/e2e-preprod.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/e2e-preprod.ts). The script uses no mocks: real Blockfrost Preprod transactions, the real Midnight proof provider (node + indexer + proof server), and the live Revolut sandbox via the SDK adapter, capturing machine-readable evidence at every stage (and the verbatim failing error if a stage fails).
 
-Programmatic equivalent (no shell):
+Programmatic sketch (see the [integration guide](integration.md) for the full, explained version):
 
 ```ts
-const lucid = await createAppLucid("sender");
-const senderPkh   = paymentPkhFromAddress(await lucid.wallet().address());
-const operatorPkh = senderPkh; // single-seed demo
+const midnightProofProvider = createMidnightProofProviderFromEnv();
+const sdk = new OffRampSDK({ senderPkh, operatorPkh, midnightProofProvider });
 
-const sdk = new OffRampSDK({ senderPkh, operatorPkh });
 const { initiate, payeeSalt, amountSalt, railQuote } = await sdk.initiateOffRamp({
-  adapter: "cashapp", payeeHandle: "$alice",
-  amountAda: 2, fiatAmount: "1.50", fiatCurrency: "USD",
+  adapter: "revolut", payeeHandle: "revolut-counterparty",
+  amountAda: 5, fiatAmount: "1.50", fiatCurrency: "GBP",
 });
 
-const { txHash: lockTxHash } = await submitLockTx({ lucid, intentRecord: /* ... */ });
+const { txHash: lockTxHash } = await submitLockTx(lucidSender, datum, initiate.escrowLovelace);
 
 const proof = await sdk.generateZKProof({
-  intentId: initiate.intentId, payeeHandle: "$alice", payeeSalt,
-  fiatAmount: "1.50", fiatCurrency: "USD",
+  intentId: initiate.intentId,
+  cardanoLockAnchor: { txHash: lockTxHash, outputIndex: 0 },
+  payeeHandle: "revolut-counterparty", payeeSalt,
+  fiatAmount: "1.50", fiatCurrency: "GBP",
   railQuoteDigest: railQuote.railQuoteDigest,
   principalLovelace: initiate.escrowLovelace, amountSalt,
+  payeeCommitment: initiate.payeeCommitment,
+  amountCommitment: initiate.amountCommitment,
   adapterTag: initiate.adapterTag,
 });
 
 const submit = await sdk.submitPayment({
-  adapter: "cashapp", intentId: initiate.intentId, proof,
-  payeeHandle: "$alice", quote: railQuote,
+  adapter: "revolut", intentId: initiate.intentId, proof,
+  payeeHandle: "revolut-counterparty", quote: railQuote,
 });
 
+// poll adapter.getStatus(...) until SETTLED, then:
 const att = await sdk.confirmSettlement({
-  intentId: initiate.intentId, railTxRef: submit.railTxRef,
-  status: "SETTLED", webhookHmac: submit.webhookHmac,
+  intentId: initiate.intentId, railTxRef: submit.railTxRef, status: "SETTLED",
+});
+const settlementReceipt = await sdk.generateSettlementReceipt({
+  intentReceipt: proof, settlementDigest: att.settlementDigest,
 });
 
-const { txHash: releaseTxHash } = await submitReleaseTx({
-  lucid, intentId: initiate.intentId, lockTxHash, lockOutputIndex: 0,
+const utxoRef = { txHash: lockTxHash, outputIndex: 0 };
+const body = {
+  settlementDigest: att.settlementDigest,
+  midnightSettlementReceiptHash: settlementReceipt.receiptHash,
+  authorizationExpiry: BigInt(Date.now() + 600_000),
+};
+const message = await releaseAuthorizationMessageForUtxo(lucidOperator, utxoRef, body);
+const { txHash: releaseTxHash } = await submitReleaseTx(lucidOperator, utxoRef, {
+  ...body, oracleSignature: signReleaseAuthorization(message),
 });
 ```
 
-Real Preprod evidence for the LOCK + RELEASE pair is in [`testnet-evidence.md`](testnet-evidence.md) — e.g. LOCK `b55e48084290…64ac2` and RELEASE `c84c242d6f86…d3168`.
-
-## Example 2 — Wise live-sandbox transfer
-
-Lifecycle: **Initiate → Prove → Submit (Wise sandbox) → Settle**.
-
-```bash
-export RAIL_ADAPTER_MODE=sandbox
-export WISE_API_TOKEN=<your-personal-sandbox-token>
-npm run test:internal       # or call submitPayment("wise") from a custom script
-```
-
-Captured 6-step run is in [`sandbox-evidence/README.md`](sandbox-evidence/README.md):
-
-1. `GET /v1/profiles` (200)
-2. `POST /v3/profiles/{id}/quotes` (200)
-3. `POST /v1/accounts` (200) — recipient
-4. `POST /v1/transfers` (200) — Wise transfer `2147582543` created
-5. `POST /v3/profiles/{id}/transfers/{tid}/payments` (403 SCA-gated)
-6. `GET /v1/transfers/{tid}` (200) — status `incoming_payment_waiting`
-
-The SDK's responsibility ends at submitting the funding intent; provider-side SCA completes the funding.
-
-## Example 3 — Refund after the deadline
+## Example 2 — Deadline-gated refund
 
 Lifecycle: **Initiate → LOCK (Preprod) → wait for `deadline` → REFUND (Preprod, sender-signed)**.
 
 ```bash
-# 1. Real LOCK on Preprod
+# Standalone scripts:
 npm run preprod:lock -- wise '$bob' 1.50 USD
+npm run preprod:refund -- <lockTxHash>     # on-chain valid only at/after the deadline
 
-# 2. Wait for ESCROW_DEADLINE_SECONDS (default 900s) to elapse, then:
-npm run preprod:refund -- <lockTxHash>
+# Or the evidence-capturing E2E driver:
+npx tsx scripts/e2e-preprod-refund.ts
+# evidence → docs/evidence/v2.0.0/e2e-refund-1.json + e2e-refund-1.md
 ```
 
-Source: [`scripts/preprod-refund.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/preprod-refund.ts).
+Source: [`scripts/preprod-refund.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/preprod-refund.ts) + [`scripts/e2e-preprod-refund.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/scripts/e2e-preprod-refund.ts). The validator rejects a refund whose validity window starts before the datum deadline, so `submitRefundTx` sets `validFrom = max(now, deadline)` — a premature refund cannot enter the chain.
 
-Real Preprod evidence: LOCK `f26f023dfc80…c6c3` → REFUND `a8c50ba93412…d0b9` ([`testnet-evidence.md`](testnet-evidence.md)).
+There is deliberately **no** standalone release npm script: releasing requires stored settlement evidence + an oracle-signed UTxO-bound authorization, which the E2E driver produces (Example 1).
 
-## Running the internal test suite
+## Example 3 — Emulator suite (no network needed)
+
+The complete on-chain surface — valid release, tampered digests/signatures, replay on a different UTxO, wrong signers, premature refunds, full-value checks — runs against an in-process Lucid emulator:
 
 ```bash
-npm run test:internal       # 10 × cashapp / wise / revolut = 30 simulated off-ramps
+npm test -w @nucast/midnightzk-offramp-sdk    # includes escrow-emulator.test.mjs — 17/17
 ```
 
-Writes [`internal-testing-report.md`](internal-testing-report.md) + `data/testing-report.json` (gitignored). Latest committed run: **30/30 successes, avg prove 751 ms** ([final-testing-and-release.md](final-testing-and-release.md)).
+Source: [`sdk/test/escrow-emulator.test.mjs`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/sdk/test/escrow-emulator.test.mjs). The same negative-path matrix exists at the validator level in Aiken: `npm run cardano:check` (25/25).
+
+## Simulation harness (not provider evidence)
+
+```bash
+npm run test:internal       # 10 × cashapp / wise / revolut = 30 SIMULATED off-ramps
+```
+
+Runs the pipeline against the **deterministic mock adapters** (`RAIL_ADAPTER_MODE=mock`) and writes [`internal-testing-report.md`](internal-testing-report.md) + `data/testing-report.json`. Useful as a smoke test of the wiring; its success rates and latency figures describe the simulation harness only and are **not** evidence of live rail integration.
+
+## Historical v1.0.0 evidence (superseded)
+
+Earlier revisions of this page cited v1.0.0 Preprod transactions (e.g. LOCK `f26f023d…` → REFUND `a8c50ba9…`, LOCK `b55e4808…` → RELEASE `c84c242d…`). Those ran against the **old signature-only validator** — the release required nothing beyond an operator signature, and the refund succeeded **without any deadline enforcement** (which is precisely the gap the v2 validator closes). They are retained, with caveats, in [`testnet-evidence.md`](testnet-evidence.md).

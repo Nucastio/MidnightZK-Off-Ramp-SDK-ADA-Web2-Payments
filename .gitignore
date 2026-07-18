@@ -75,3 +75,6 @@ Thumbs.db
 
 # MkDocs build output (CI rebuilds on push to main)
 /site/
+
+# Local Midnight devnet ledger DB (root-level, from e2e runs)
+/midnight-level-db/

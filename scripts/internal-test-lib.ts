@@ -12,6 +12,7 @@
  * them in every test run would consume real ADA + Blockfrost quota.
  */
 import { OffRampSDK } from "../sdk/src/index.ts";
+import { MockMidnightProofProvider } from "../sdk/src/testing/mock-midnight-proof-provider.ts";
 import type { Currency, RailId } from "../sdk/src/types.ts";
 import { saveReport, type TestReportRecord } from "../backend/api/state.ts";
 
@@ -35,7 +36,11 @@ export interface RunResult {
 }
 
 async function runOne(adapter: RailId, payeeHandle: string, fiat: { amount: string; currency: Currency }): Promise<RunResult> {
-  const sdk = new OffRampSDK({ senderPkh: SENDER_PKH, operatorPkh: OPERATOR_PKH });
+  const sdk = new OffRampSDK({
+    senderPkh: SENDER_PKH,
+    operatorPkh: OPERATOR_PKH,
+    midnightProofProvider: new MockMidnightProofProvider(),
+  });
   const t0 = performance.now();
   let proveMs = 0,
     verifyMs = 0,
@@ -50,8 +55,10 @@ async function runOne(adapter: RailId, payeeHandle: string, fiat: { amount: stri
       fiatCurrency: fiat.currency,
     });
     const tProve = performance.now();
+    const cardanoLockAnchor = { txHash: "aa".repeat(32), outputIndex: 0 };
     const proof = await sdk.generateZKProof({
       intentId: initiate.intentId,
+      cardanoLockAnchor,
       payeeHandle,
       payeeSalt,
       fiatAmount: fiat.amount,
@@ -59,18 +66,18 @@ async function runOne(adapter: RailId, payeeHandle: string, fiat: { amount: stri
       railQuoteDigest: railQuote.railQuoteDigest,
       principalLovelace: initiate.escrowLovelace,
       amountSalt,
+      payeeCommitment: initiate.payeeCommitment,
+      amountCommitment: initiate.amountCommitment,
       adapterTag: initiate.adapterTag,
     });
     proveMs = performance.now() - tProve;
     const tVerify = performance.now();
     await sdk.verifyZKProof(proof, {
-      payeeHandle,
-      payeeSalt,
-      fiatAmount: fiat.amount,
-      fiatCurrency: fiat.currency,
-      railQuoteDigest: railQuote.railQuoteDigest,
-      principalLovelace: initiate.escrowLovelace,
-      amountSalt,
+      intentId: initiate.intentId,
+      cardanoLockAnchor,
+      payeeCommitment: initiate.payeeCommitment,
+      amountCommitment: initiate.amountCommitment,
+      adapterTag: initiate.adapterTag,
     });
     verifyMs = performance.now() - tVerify;
     const tSubmit = performance.now();

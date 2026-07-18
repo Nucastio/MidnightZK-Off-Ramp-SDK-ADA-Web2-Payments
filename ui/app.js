@@ -12,10 +12,12 @@ document.getElementById("api-docs").href = (API_BASE || "") + "/docs";
 const $ = (id) => document.getElementById(id);
 const state = {
   intent: null,
+  // One-time secrets returned by /initiate; held in page memory only.
+  capabilityToken: null,
+  payeeHandle: null,
   payeeSalt: null,
   amountSalt: null,
   lockTxHash: null,
-  lockOutputIndex: 0,
 };
 
 function log(col, msg, klass = "") {
@@ -51,16 +53,20 @@ function setStepStatus(stepId, status, label) {
 }
 
 async function api(path, body) {
-  const opt = { method: body ? "POST" : "GET" };
+  const opt = { method: body ? "POST" : "GET", headers: {} };
   if (body) {
-    opt.headers = { "Content-Type": "application/json" };
+    opt.headers["Content-Type"] = "application/json";
     opt.body = JSON.stringify(body);
   }
+  // Per-intent capability token: required on every mutation + detail read.
+  if (state.capabilityToken) opt.headers["X-Capability-Token"] = state.capabilityToken;
   const res = await fetch(API_BASE + path, opt);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || res.statusText);
   return json;
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function bootHero() {
   try {
@@ -96,18 +102,23 @@ $("btn-initiate").addEventListener("click", async () => {
   try {
     const r = await api("/api/offramp/initiate", body);
     state.intent = r.intent;
+    state.capabilityToken = r.capabilityToken; // returned exactly once
+    state.payeeHandle = body.payeeHandle;      // never returned by the server
     state.payeeSalt = r.payeeSalt;
     state.amountSalt = r.amountSalt;
+    state.lockTxHash = null;
     log("midnight", `intent ${r.intent.intentId.slice(0, 16)}… created  payee=${r.intent.initiate.payeeCommitment.slice(0, 12)}…`, "ok");
     setStepStatus("step-1", "done", "Done");
     setResult("r-initiate", {
       intentId: r.intent.intentId,
+      state: r.intent.state,
       payeeCommitment: r.intent.initiate.payeeCommitment,
       amountCommitment: r.intent.initiate.amountCommitment,
       adapterTag: r.intent.initiate.adapterTag,
       vkHash: r.intent.initiate.vkHash,
       "rail quote digest": r.intent.quote.railQuoteDigest,
       deadline: new Date(r.intent.initiate.deadline * 1000).toISOString(),
+      capabilityToken: r.capabilityToken,
     });
     $("btn-lock").disabled = false;
     $("btn-prove").disabled = false;
@@ -124,9 +135,22 @@ $("btn-lock").addEventListener("click", async () => {
   try {
     const r = await api("/api/offramp/lock", { intentId: state.intent.intentId });
     state.lockTxHash = r.txHash;
-    log("cardano", `LOCK tx ${r.txHash.slice(0, 16)}… → ${r.scriptAddress.slice(0, 14)}…`, "ok");
-    setStepStatus("step-2", "done", "Locked");
-    setResult("r-lock", { txHash: r.txHash, scriptAddress: r.scriptAddress, explorer: r.explorer });
+    log("cardano", `LOCK tx ${r.txHash.slice(0, 16)}… → ${(r.scriptAddress || "").slice(0, 14)}…`, "ok");
+    setStepStatus("step-2", "active", "Waiting for on-chain confirmation…");
+    // The lifecycle requires LOCK_CONFIRMED before proving.
+    let confirmed = false;
+    for (let attempt = 0; attempt < 30 && !confirmed; attempt++) {
+      try {
+        const cr = await api("/api/offramp/confirm-lock", { intentId: state.intent.intentId });
+        confirmed = cr.state === "LOCK_CONFIRMED" || cr.idempotent === true;
+      } catch (err) {
+        await sleep(10_000);
+      }
+    }
+    if (!confirmed) throw new Error("lock tx not confirmed yet — retry Lock to re-check");
+    log("cardano", "LOCK confirmed on-chain (state LOCK_CONFIRMED)", "ok");
+    setStepStatus("step-2", "done", "Locked + confirmed");
+    setResult("r-lock", { txHash: r.txHash, scriptAddress: r.scriptAddress, state: "LOCK_CONFIRMED" });
   } catch (e) {
     setStepStatus("step-2", "error", e.message);
     setResult("r-lock", e.message, false);
@@ -136,8 +160,8 @@ $("btn-lock").addEventListener("click", async () => {
 
 $("btn-skip-lock").addEventListener("click", () => {
   if (!state.intent) return;
-  setStepStatus("step-2", "done", "Skipped (off-chain demo)");
-  log("cardano", "lock skipped — using off-chain pipeline only", "");
+  setStepStatus("step-2", "error", "Cannot skip: lifecycle requires a confirmed lock");
+  log("cardano", "lock skip unavailable — the state machine requires LOCK_CONFIRMED before proving", "err");
 });
 
 $("btn-prove").addEventListener("click", async () => {
@@ -147,19 +171,19 @@ $("btn-prove").addEventListener("click", async () => {
   try {
     const r = await api("/api/offramp/prove", {
       intentId: state.intent.intentId,
-      payeeHandle: state.intent.payeeHandle,
+      payeeHandle: state.payeeHandle,
       payeeSalt: state.payeeSalt,
       amountSalt: state.amountSalt,
     });
-    log("midnight", `proof generated  pi=${r.proof.pi.slice(0, 16)}…  prove=${r.proof.proveDurationMs}ms  verify=${r.verify.verifyDurationMs}ms`, "ok");
-    setStepStatus("step-3", "done", `Done (${r.proof.proveDurationMs} ms prove · ${r.verify.verifyDurationMs} ms verify)`);
+    const proveMs = r.proof.timestamps ? (r.proof.timestamps.completedAtMs - r.proof.timestamps.startedAtMs) : undefined;
+    log("midnight", `intent receipt ${r.proof.receiptHash.slice(0, 16)}…  state=${r.state}`, "ok");
+    setStepStatus("step-3", "done", proveMs !== undefined ? `Done (${proveMs} ms)` : "Done");
     setResult("r-prove", {
-      pi: r.proof.pi,
-      vkHash: r.proof.vkHash,
+      receiptHash: r.proof.receiptHash,
+      contractAddress: r.proof.contractAddress,
       payeeCommitment: r.proof.publicInputs.payeeCommitment,
       amountCommitment: r.proof.publicInputs.amountCommitment,
-      proveMs: r.proof.proveDurationMs,
-      verifyMs: r.verify.verifyDurationMs,
+      state: r.state,
     });
     $("btn-submit").disabled = false;
   } catch (e) {
@@ -174,10 +198,13 @@ $("btn-submit").addEventListener("click", async () => {
   setStepStatus("step-4", "active", "Submitting payment…");
   $("btn-submit").disabled = true;
   try {
-    const r = await api("/api/offramp/submit-payment", { intentId: state.intent.intentId, payeeHandle: state.intent.payeeHandle });
+    const r = await api("/api/offramp/submit-payment", {
+      intentId: state.intent.intentId,
+      payeeHandle: state.payeeHandle,
+    });
     log("midnight", `rail ${state.intent.adapter}: ${r.result.status}  ref=${r.result.railTxRef}`, r.result.status === "ACCEPTED" ? "ok" : "err");
     setStepStatus("step-4", "done", `${state.intent.adapter}: ${r.result.status}`);
-    setResult("r-submit", { railTxRef: r.result.railTxRef, status: r.result.status, webhookHmac: r.result.webhookHmac });
+    setResult("r-submit", { railTxRef: r.result.railTxRef, status: r.result.status, providerStatus: r.result.providerStatus, state: r.state });
     $("btn-settle").disabled = false;
   } catch (e) {
     setStepStatus("step-4", "error", e.message);
@@ -188,13 +215,20 @@ $("btn-submit").addEventListener("click", async () => {
 
 $("btn-settle").addEventListener("click", async () => {
   if (!state.intent) return;
-  setStepStatus("step-5", "active", "Signing attestation…");
+  setStepStatus("step-5", "active", "Checking provider + signing attestation…");
   $("btn-settle").disabled = true;
   try {
-    const r = await api("/api/offramp/confirm-settlement", { intentId: state.intent.intentId, status: "SETTLED" });
-    log("midnight", `oracle SETTLED  digest=${r.attestation.settlementDigest.slice(0, 16)}…`, "ok");
-    setStepStatus("step-5", "done", "Attestation signed");
-    setResult("r-settle", { settlementDigest: r.attestation.settlementDigest, signature: r.attestation.signature.slice(0, 24) + "…", signedAt: new Date(r.attestation.signedAt * 1000).toISOString() });
+    // No caller-supplied status: the backend asks the rail adapter and only
+    // then has the oracle attest.
+    const r = await api("/api/offramp/confirm-settlement", { intentId: state.intent.intentId });
+    log("midnight", `oracle ${r.attestation.status}  digest=${r.attestation.settlementDigest.slice(0, 16)}…  state=${r.state}`, "ok");
+    setStepStatus("step-5", "done", `Attested ${r.attestation.status}`);
+    setResult("r-settle", {
+      settlementDigest: r.attestation.settlementDigest,
+      signature: r.attestation.signature.slice(0, 24) + "…",
+      signedAt: new Date(r.attestation.signedAt * 1000).toISOString(),
+      state: r.state,
+    });
     if (state.lockTxHash) $("btn-release").disabled = false;
   } catch (e) {
     setStepStatus("step-5", "error", e.message);
@@ -204,18 +238,15 @@ $("btn-settle").addEventListener("click", async () => {
 });
 
 $("btn-release").addEventListener("click", async () => {
-  if (!state.intent || !state.lockTxHash) return;
-  setStepStatus("step-6", "active", "Submitting RELEASE tx…");
+  if (!state.intent) return;
+  setStepStatus("step-6", "active", "Authorizing + submitting RELEASE tx…");
   $("btn-release").disabled = true;
   try {
-    const r = await api("/api/offramp/release", {
-      intentId: state.intent.intentId,
-      lockTxHash: state.lockTxHash,
-      lockOutputIndex: state.lockOutputIndex,
-    });
+    // Server uses the stored lock UTxO + datum-bound destination only.
+    const r = await api("/api/offramp/release", { intentId: state.intent.intentId });
     log("cardano", `RELEASE tx ${r.txHash.slice(0, 16)}…`, "ok");
     setStepStatus("step-6", "done", "Released");
-    setResult("r-release", { txHash: r.txHash, explorer: r.explorer });
+    setResult("r-release", { txHash: r.txHash, state: r.state });
   } catch (e) {
     setStepStatus("step-6", "error", e.message);
     setResult("r-release", e.message, false);
@@ -224,20 +255,17 @@ $("btn-release").addEventListener("click", async () => {
 });
 
 $("btn-refund").addEventListener("click", async () => {
-  if (!state.intent || !state.lockTxHash) {
-    setResult("r-release", "no lock tx — cannot refund", false);
+  if (!state.intent) {
+    setResult("r-release", "no intent — initiate first", false);
     return;
   }
   setStepStatus("step-6", "active", "Submitting REFUND tx…");
   try {
-    const r = await api("/api/offramp/refund", {
-      intentId: state.intent.intentId,
-      lockTxHash: state.lockTxHash,
-      lockOutputIndex: state.lockOutputIndex,
-    });
+    // Server enforces the deadline and uses the stored lock UTxO only.
+    const r = await api("/api/offramp/refund", { intentId: state.intent.intentId });
     log("cardano", `REFUND tx ${r.txHash.slice(0, 16)}…`, "ok");
     setStepStatus("step-6", "done", "Refunded");
-    setResult("r-release", { txHash: r.txHash, explorer: r.explorer });
+    setResult("r-release", { txHash: r.txHash, state: r.state });
   } catch (e) {
     setStepStatus("step-6", "error", e.message);
     setResult("r-release", e.message, false);

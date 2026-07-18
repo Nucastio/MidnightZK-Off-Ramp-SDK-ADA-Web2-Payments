@@ -5,14 +5,23 @@ REST surface for the bundled Hono backend. The OpenAPI 3.0.3 specification is ge
 - `/docs` — Swagger UI
 - `/api/openapi.json` — machine-readable OpenAPI
 
-Base URL is whatever the backend is bound to (`http://127.0.0.1:8801` by default; an eval-window cloudflare tunnel during evaluation).
+Base URL is whatever the backend is bound to (`http://127.0.0.1:8788` by default).
 
-## Tags
+## Lifecycle state machine
 
-- **System** — health + OpenAPI
-- **OffRamp** — intent lifecycle
-- **Cardano** — LOCK / RELEASE / REFUND
-- **Testing** — internal testing suite + report
+```
+CREATED → LOCK_SUBMITTED → LOCK_CONFIRMED → MIDNIGHT_INTENT_PROVED
+        → PAYMENT_SUBMITTED → SETTLEMENT_CONFIRMED → MIDNIGHT_SETTLEMENT_PROVED
+        → RELEASE_AUTHORIZED → RELEASED
+```
+
+Terminals: `RELEASED`, `PAYMENT_FAILED`, `REFUNDED` (refund also recovers escrow from `PAYMENT_FAILED` after the deadline). Every mutation validates the source state — a skipped step returns **409** — and is idempotent: replaying a completed step returns the stored result with `idempotent: true`.
+
+## Authentication
+
+`POST /api/offramp/initiate` returns a per-intent **`capabilityToken` exactly once**; only its SHA-256 hash is persisted. All mutation routes and `GET /api/intents/{id}` require it via the `X-Capability-Token` header (or `Authorization: Bearer …`); missing/invalid tokens return **401**.
+
+The initiate response also returns `payeeSalt` / `amountSalt` exactly once — the server never persists or re-returns cleartext payee handles or salts; stored intents contain only commitments, hashes, receipts, and chain references (PII redaction is enforced at the persistence layer).
 
 ## System
 
@@ -28,11 +37,11 @@ The OpenAPI document used to render Swagger UI.
 
 ### `GET /api/adapters`
 
-List available rail adapters (`cashapp`, `wise`, `revolut`) and their current mode (`mock` / `sandbox`).
+List available rail adapters (`cashapp`, `wise`, `revolut`) with mode, readiness, missing env, and capabilities.
 
-### `POST /api/offramp/initiate`
+### `POST /api/offramp/initiate` — state: `CREATED`
 
-Initiate an off-ramp intent. **No on-chain tx is submitted.**
+Builds commitments + rail quote; **no on-chain tx**.
 
 ```json
 {
@@ -44,88 +53,84 @@ Initiate an off-ramp intent. **No on-chain tx is submitted.**
 }
 ```
 
-Response includes `intentId`, `payeeCommitment`, `amountCommitment`, `adapterTag`, `deadline`, `vkHash`, and the `payeeSalt` / `amountSalt` used for the proof.
+Response includes `intentId`, commitments, `adapterTag`, `deadline`, `vkHash` (the 23-asset artifact manifest hash), and the one-time `capabilityToken`, `payeeSalt`, `amountSalt`.
 
-### `POST /api/offramp/prove`
+### `POST /api/offramp/lock` — `CREATED → LOCK_SUBMITTED` 🔐
 
-Generate the Midnight ZK proof bound to an intent.
-
-```json
-{ "intentId": "<hex>" }
-```
-
-Returns a `ProofBundle` (`intentId`, `circuitId: "offramp:v1"`, `vkHash`, `publicInputs`, `pi`, `generatedAtMs`, `proveDurationMs`).
-
-### `POST /api/offramp/submit-payment`
-
-Submit the fiat payout via the configured rail adapter.
+Pays the configured escrow into the validator with the inline `EscrowDatum`. Idempotent.
 
 ```json
 { "intentId": "<hex>" }
 ```
 
-Returns `railTxRef`, `status: "ACCEPTED" | "REJECTED"`, and the adapter-signed `webhookHmac`.
+### `POST /api/offramp/confirm-lock` — `LOCK_SUBMITTED → LOCK_CONFIRMED` 🔐
 
-### `POST /api/offramp/confirm-settlement`
+Confirms the lock UTxO is visible on-chain (409 until it is).
 
-Confirm settlement via the Settlement Oracle. Verifies the adapter HMAC, then emits an Ed25519-signed canonical attestation bound to `intentId`.
+### `POST /api/offramp/prove` — `LOCK_CONFIRMED → MIDNIGHT_INTENT_PROVED` 🔐
+
+Generates the Midnight intent receipt through the real proof provider. The client **re-supplies** the payee handle + salts (held client-side); the server never persists them.
+
+```json
+{ "intentId": "<hex>", "payeeHandle": "$alice", "payeeSalt": "<hex>", "amountSalt": "<hex>" }
+```
+
+Returns the `MidnightIntentReceipt` (finalized Midnight tx/block identifiers + public state + `receiptHash`).
+
+### `POST /api/offramp/submit-payment` — `MIDNIGHT_INTENT_PROVED → PAYMENT_SUBMITTED` 🔐
+
+Submits the fiat payout via the configured rail adapter. A provider rejection returns **502** and transitions the intent to `PAYMENT_FAILED`.
+
+```json
+{ "intentId": "<hex>", "payeeHandle": "$alice" }
+```
+
+### `POST /api/offramp/confirm-settlement` — `PAYMENT_SUBMITTED → … → MIDNIGHT_SETTLEMENT_PROVED` 🔐
+
+**Caller-supplied `status` is rejected (400).** The server obtains the provider status through the rail adapter — its authenticated `getStatus`, or `verifyWebhook` on caller-relayed provider webhook bytes — and only attests terminal provider states. On `SETTLED` it emits the oracle attestation and the Midnight settlement receipt; a `FAILED` provider status transitions to `PAYMENT_FAILED`; a non-terminal status returns **409**.
 
 ```json
 { "intentId": "<hex>" }
 ```
 
-Returns an `OracleAttestation`.
+or, relaying a provider webhook:
+
+```json
+{ "intentId": "<hex>", "webhook": { "rawBody": "<provider bytes>", "headers": { "x-provider-signature": "<sig>" } } }
+```
+
+### `POST /api/offramp/release` — `MIDNIGHT_SETTLEMENT_PROVED → RELEASE_AUTHORIZED → RELEASED` 🔐
+
+Builds the release authorization from the **stored** oracle attestation + Midnight settlement receipt, signs it server-side with the oracle key for the **stored lock UTxO reference**, and submits the `Release` tx to the datum-bound operator destination. Caller-supplied `lockTxHash` / `payoutAddress` / `oracleSignature` overrides are **rejected (400)**. Missing settlement evidence or a passed deadline returns **409**.
+
+```json
+{ "intentId": "<hex>" }
+```
+
+### `POST /api/offramp/refund` — `→ REFUNDED` 🔐
+
+Spends the stored lock UTxO back to the datum-bound sender destination. The escrow deadline is enforced server-side (**409** before it) and again on-chain. Override fields are rejected.
+
+```json
+{ "intentId": "<hex>" }
+```
 
 ### `GET /api/intents`
 
-List all intents in the in-memory store.
+List intent **summaries** only (id, state, adapter, timestamps).
 
-### `GET /api/intents/{id}`
+### `GET /api/intents/{id}` 🔐
 
-Fetch a single intent (404 if unknown).
+Fetch a single intent — requires that intent's capability token.
 
-## Cardano
+🔐 = requires `X-Capability-Token`.
 
-### `POST /api/offramp/lock`
+## Testing (disabled by default)
 
-Submit a LOCK tx that pays the configured min-ADA into the escrow validator with inline `EscrowDatum`. Returns `txHash` + `scriptAddress`.
-
-```json
-{ "intentId": "<hex>" }
-```
-
-### `POST /api/offramp/release`
-
-Submit a RELEASE tx (operator-signed).
-
-```json
-{ "intentId": "<hex>", "lockTxHash": "<hex>", "lockOutputIndex": 0 }
-```
-
-### `POST /api/offramp/refund`
-
-Submit a REFUND tx (sender-signed; only valid after the deadline).
-
-```json
-{ "intentId": "<hex>", "lockTxHash": "<hex>", "lockOutputIndex": 0 }
-```
-
-## Testing
-
-### `GET /api/testing-report`
-
-Return the latest internal testing report (mirrors [`docs/internal-testing-report.md`](internal-testing-report.md)).
-
-### `POST /api/test/run-suite`
-
-Run the internal testing suite (default 30 simulated off-ramps = 10 × cashapp/wise/revolut). Returns the generated report payload.
-
-```json
-{ "runsPerRail": 10 }
-```
+`GET /api/testing-report` and `POST /api/test/run-suite` run/report the internal **simulation harness** (mock adapters). Both return **403** unless `OFFRAMP_ENABLE_TEST_ENDPOINTS=1`, and require `X-Test-Token` when `OFFRAMP_TEST_TOKEN` is set. Harness output is not live-provider evidence.
 
 ---
 
 ## Live Swagger
 
-When the backend is running, `/docs` renders the Swagger UI for these routes against the running server, so payload shapes and the exact response bodies are interactively explorable. The OpenAPI source lives at [`backend/api/openapi.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/backend/api/openapi.ts) and is the source of truth for this page.
+When the backend is running, `/docs` renders Swagger UI against the running server. [`backend/api/openapi.ts`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/backend/api/openapi.ts) is the source of truth for this page.

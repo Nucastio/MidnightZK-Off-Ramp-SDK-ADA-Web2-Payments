@@ -4,14 +4,47 @@
   "description": "Non-custodial ADA→fiat off-ramp SDK: Cardano escrow + Midnight ZK + rail adapters (Cash App, Wise, Revolut).",
   "license": "MIT",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./adapters/*": "./src/adapters/*.ts",
-    "./cardano/*": "./src/cardano/*.ts",
-    "./oracle/*": "./src/oracle/*.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./adapters/*": {
+      "types": "./dist/adapters/*.d.ts",
+      "import": "./dist/adapters/*.js",
+      "default": "./dist/adapters/*.js"
+    },
+    "./cardano/*": {
+      "types": "./dist/cardano/*.d.ts",
+      "import": "./dist/cardano/*.js",
+      "default": "./dist/cardano/*.js"
+    },
+    "./oracle/*": {
+      "types": "./dist/oracle/*.d.ts",
+      "import": "./dist/oracle/*.js",
+      "default": "./dist/oracle/*.js"
+    },
+    "./testing/mock-midnight-proof-provider": {
+      "types": "./dist/testing/mock-midnight-proof-provider.d.ts",
+      "import": "./dist/testing/mock-midnight-proof-provider.js",
+      "default": "./dist/testing/mock-midnight-proof-provider.js"
+    }
   },
-  "files": ["src"],
+  "files": ["dist", "scripts"],
+  "scripts": {
+    "postinstall": "node scripts/fix-libsodium.mjs",
+    "generate:artifact-manifest": "node scripts/generate-artifact-manifest.mjs",
+    "prebuild": "npm run generate:artifact-manifest",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "pretypecheck": "npm run generate:artifact-manifest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:emulator": "npm run build && node --test test/escrow-emulator.test.mjs"
+  },
   "peerDependencies": {
     "@lucid-evolution/lucid": "0.4.29",
     "@lucid-evolution/utils": "0.1.66"

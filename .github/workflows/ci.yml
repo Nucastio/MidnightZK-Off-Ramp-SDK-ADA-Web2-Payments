@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: TypeScript, builds, and checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck workspaces
+        run: npm run typecheck
+      - name: Build SDK, contract, and CLI
+        run: npm run build
+      - name: Run existing checks
+        run: npm test
+        env:
+          RAIL_ADAPTER_MODE: mock
+          OFFRAMP_PROVE_MS: "1"
+          OFFRAMP_PROVE_JITTER_MS: "0"
+          OPERATOR_ED25519_SK_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+
+  aiken:
+    name: Aiken check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aiken-lang/setup-aiken@v1
+        with:
+          version: v1.1.21
+      - name: Check escrow validator
+        working-directory: cardano/escrow
+        run: aiken check
+
+  docs:
+    name: MkDocs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install MkDocs Material
+        run: pip install --upgrade "mkdocs-material>=9.5"
+      - name: Build documentation
+        run: mkdocs build

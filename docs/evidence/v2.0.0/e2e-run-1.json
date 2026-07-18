@@ -1,0 +1,462 @@
+{
+  "kind": "OFFRAMP_E2E_PREPROD_HAPPY_PATH",
+  "version": "2.0.0",
+  "script": "scripts/e2e-preprod.ts",
+  "startedAt": "2026-07-18T09:24:22.054Z",
+  "stages": {
+    "0-preflight": {
+      "startedAt": "2026-07-18T09:24:22.912Z",
+      "completedAt": "2026-07-18T09:24:50.362Z",
+      "durationMs": 27450,
+      "cardano": {
+        "network": "Preprod",
+        "blockfrostBase": "https://cardano-preprod.blockfrost.io/api/v0",
+        "tipAtStart": {
+          "time": 1784366655,
+          "height": 4949969,
+          "hash": "6e7382eff7d185dd3a45c8b57e189ee9557b0438c277549a938740560e772c08",
+          "slot": 128683455,
+          "epoch": 301,
+          "epoch_slot": 293055,
+          "slot_leader": "pool187yqngpdck7j8pa7r9hhp3fpxem478fqw2nklyr59ppkwystqdl",
+          "size": 1018,
+          "tx_count": 2,
+          "output": "5557818",
+          "fees": "442182",
+          "block_vrf": "vrf_vk1ksgfrzu4hwy8su48xvxuw7kgj9cvt9vmvjd4wtl5vd02jutt6aqsw0333p",
+          "op_cert": "0de77d7c8a1354fafafe4690cdc30866c4e740f8d67884b03fbe46cccfad852d",
+          "op_cert_counter": "9",
+          "previous_block": "c9605d8f684f3c8ffbd96a6b5842f9db0215798d8412575e302ebad8e0067143",
+          "next_block": null,
+          "confirmations": 0
+        },
+        "scriptAddress": "addr_test1wp5lfjw2zlh4yxq8t8u6p8cxfacxdycp9w2n3j56k59h0ngyj3752",
+        "senderAddress": "addr_test1qqe7et9t7fyuwsvkxtsvauhdanmekqgj3nzuhhva7c3aqryfwv32hch4m0mfkshdul73fstpx89l7h0z73t328p06g4snrcxhg",
+        "senderPkh": "33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c",
+        "operatorAddress": "addr_test1qp6fa9elr5z32059z0mt3ps3d0yq058wpq7u8nnc3mdx2rt3kmkg85y7flkpu2ldh2uuuqfdsysu42y623x5794raxws2gaefv",
+        "operatorPkh": "749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d",
+        "operatorFunding": {
+          "txHash": "411d2eeea83fe30d12eff37f2ffd0babff737049fb957047f2ebb2ec88b9c241",
+          "blockHeight": 4949944,
+          "confirmationsAtPreflight": 25,
+          "explorer": "https://preprod.cardanoscan.io/transaction/411d2eeea83fe30d12eff37f2ffd0babff737049fb957047f2ebb2ec88b9c241"
+        }
+      },
+      "midnight": {
+        "networkId": "undeployed",
+        "node": "http://127.0.0.1:9944",
+        "indexer": "http://127.0.0.1:8088/api/v4/graphql",
+        "proofServer": "http://127.0.0.1:6300",
+        "proofServerHealth": "{\"status\":\"ok\",\"timestamp\":\"2026-07-18 09:24:24.009229876 +00:00:00\"}",
+        "indexerCatchUp": {
+          "nodeHeight": 961069,
+          "indexerHeight": 961067,
+          "waitMs": 26038
+        }
+      },
+      "rail": {
+        "adapter": "revolut",
+        "mode": "sandbox",
+        "health": {
+          "adapter": "revolut",
+          "requestedMode": "sandbox",
+          "effectiveMode": "sandbox",
+          "ready": true,
+          "configured": true,
+          "missingEnv": [],
+          "capabilities": {
+            "providerQuote": false,
+            "idempotentSubmit": true,
+            "authenticatedStatus": true,
+            "webhookVerification": true,
+            "sandboxEvidenceDriver": true
+          }
+        }
+      }
+    },
+    "1-initiate": {
+      "startedAt": "2026-07-18T09:24:50.380Z",
+      "completedAt": "2026-07-18T09:24:50.382Z",
+      "durationMs": 2,
+      "params": {
+        "adapter": "revolut",
+        "payeeHandle": "@test_user_rv",
+        "fiatAmount": "1.00",
+        "fiatCurrency": "GBP",
+        "escrowLovelace": "5000000",
+        "deadlineSeconds": 2700
+      },
+      "initiate": {
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "payeeCommitment": "38124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d1582",
+        "amountCommitment": "c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d2",
+        "adapterTag": "dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e625",
+        "payeeSalt": "b71fc9be49503edc77af00d547686ff7",
+        "amountSalt": "4b6515c40edd3d0244a666e9d47b1ddf",
+        "deadline": 1784369390,
+        "vkHash": "37bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc",
+        "escrowLovelace": "5000000"
+      },
+      "witnesses": {
+        "payeeSalt": "b71fc9be49503edc77af00d547686ff7",
+        "amountSalt": "4b6515c40edd3d0244a666e9d47b1ddf",
+        "note": "testnet demo witnesses; retained here so every commitment in this run is independently reproducible"
+      },
+      "railQuote": {
+        "adapter": "revolut",
+        "fiatAmount": "1.00",
+        "fiatCurrency": "GBP",
+        "railQuoteDigest": "acc7b1a60e4620bf8bf568806fe6ac6af666b12e6a365838fd5bd0b2c52807ba",
+        "quotedAt": 1784366690,
+        "rate": "1",
+        "fees": "0",
+        "targetAmount": "1.00"
+      }
+    },
+    "2-cardano-lock": {
+      "startedAt": "2026-07-18T09:24:50.382Z",
+      "completedAt": "2026-07-18T09:25:39.046Z",
+      "durationMs": 48664,
+      "txHash": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+      "scriptAddress": "addr_test1wp5lfjw2zlh4yxq8t8u6p8cxfacxdycp9w2n3j56k59h0ngyj3752",
+      "outputIndex": 0,
+      "escrowLovelace": "5000000",
+      "datum": {
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "payeeCommitment": "38124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d1582",
+        "amountCommitment": "c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d2",
+        "adapterTag": "dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e625",
+        "deadline": "1784369390000",
+        "circuitArtifactHash": "37bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc",
+        "senderPkh": "33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c",
+        "operatorPkh": "749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d",
+        "oraclePublicKey": "b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bff"
+      },
+      "datumCbor": "d8799f58201fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9582038124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d15825820c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d25820dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e6251b0000019f74b421b0582037bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc581c33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c581c749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d5820b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bffff",
+      "onChainInlineDatum": "d8799f58201fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9582038124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d15825820c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d25820dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e6251b0000019f74b421b0582037bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc581c33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c581c749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d5820b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bffff",
+      "onChainDatumRoundTripOk": true,
+      "deadlineIso": "2026-07-18T10:09:50.000Z",
+      "confirmation": {
+        "blockHeight": 4949970,
+        "blockHash": "5371ded7396b95175cea401456e6f9c8a95e3e3ac1cdd66fbf95c7c94d72c96c",
+        "blockTime": 1784366713,
+        "fees": "248133",
+        "confirmations": 2,
+        "waitMs": 44185
+      },
+      "explorer": "https://preprod.cardanoscan.io/transaction/7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb"
+    },
+    "3-midnight-intent": {
+      "startedAt": "2026-07-18T09:25:39.046Z",
+      "completedAt": "2026-07-18T09:27:14.058Z",
+      "durationMs": 95012,
+      "proveDurationMs": 94953,
+      "receipt": {
+        "kind": "midnight-intent-receipt",
+        "version": 1,
+        "contractId": "offramp",
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "cardanoLockAnchor": {
+          "txHash": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+          "outputIndex": 0
+        },
+        "contractAddress": "cfb3512701425646bca3711775651f30acc589a716c48745d9a4314327ca37c3",
+        "network": "undeployed",
+        "artifactManifestHash": "37bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc",
+        "publicInputs": {
+          "payeeCommitment": "38124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d1582",
+          "amountCommitment": "c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d2",
+          "adapterTag": "dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e625"
+        },
+        "transactions": {
+          "deployment": {
+            "operation": "deploy",
+            "status": "SucceedEntirely",
+            "txId": "00fa0ccccbad9a4a030a1aca7546399b9aa9b6bce62e8b0c5b41a2834785c66c24",
+            "identifiers": [
+              "00fa0ccccbad9a4a030a1aca7546399b9aa9b6bce62e8b0c5b41a2834785c66c24",
+              "00d671a1b840d7f850e81b02ec81560c9569a42d5d9e7c378e9be3d22fca7e3ab7"
+            ],
+            "txHash": "e2530d45a4cbf9702fbdd09831356a36687e00719496e2461ed2bad9b2413456",
+            "blockHash": "108a21a52922f532a11708162467e606f4850da453652db971a7509fd8ef8c17",
+            "blockHeight": 961079,
+            "blockTimestamp": 1784366748,
+            "finalizedAtMs": 1784366833998
+          },
+          "bindOffRampIntent": {
+            "operation": "bindOffRampIntent",
+            "status": "SucceedEntirely",
+            "txId": "002f92e41ed9b7a44b2b435e9ea19d929836e4db1b5c527f3a7482b6770a7b8fee",
+            "identifiers": [
+              "002f92e41ed9b7a44b2b435e9ea19d929836e4db1b5c527f3a7482b6770a7b8fee",
+              "006e8befcddd72575e856208b199b639bda73a7d9a01155c222a79ee736a4eabc8"
+            ],
+            "txHash": "9a7151d3e636545ec5f7e5736cec1585188e2688278a3a5e5cc0ff76242ac44f",
+            "blockHash": "80e2c6185b740eb6e6f874c33cf646b82af25d6a1205395c70523ce1a41116cb",
+            "blockHeight": 961083,
+            "blockTimestamp": 1784366772,
+            "finalizedAtMs": 1784366785909
+          },
+          "provePayeeBinding": {
+            "operation": "provePayeeBinding",
+            "status": "SucceedEntirely",
+            "txId": "004a30aca72b88c2a3de395437ffd2719f8930640066c3f563d9f322ffc8eaaebf",
+            "identifiers": [
+              "004a30aca72b88c2a3de395437ffd2719f8930640066c3f563d9f322ffc8eaaebf",
+              "00189da1b2643d190dcc71ea8b4f009567421619c31a4cf905499f07d5d39f9dd4"
+            ],
+            "txHash": "29f65cba9b9c28f799d1d6c052c7a528c88399d41f4853c88cd3d7a585692acc",
+            "blockHash": "1cf25b6e6fd61562f27216f7b994c0a1a4c448962659949fe6f511ce7bf87e10",
+            "blockHeight": 961087,
+            "blockTimestamp": 1784366796,
+            "finalizedAtMs": 1784366809911
+          },
+          "proveAmountBinding": {
+            "operation": "proveAmountBinding",
+            "status": "SucceedEntirely",
+            "txId": "00ed3bc8f104dec6bed7e3820af169cd8c82c0952069bb9fffa2df4934a364039f",
+            "identifiers": [
+              "00ed3bc8f104dec6bed7e3820af169cd8c82c0952069bb9fffa2df4934a364039f",
+              "00d599b471c0986971fd04368c1c200f81ed028424a3ed524e33f901e75c071a07"
+            ],
+            "txHash": "4ec4d7518d2851cb52905e7488b1289af2bfa67ed0370616886ef93af3ff7af5",
+            "blockHash": "cc9147727e490d5d8dfb3c9656722bf8a951702857bb3e20821c19aaffc9ab17",
+            "blockHeight": 961091,
+            "blockTimestamp": 1784366820,
+            "finalizedAtMs": 1784366833929
+          }
+        },
+        "publicState": {
+          "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+          "payeeCommitment": "38124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d1582",
+          "amountCommitment": "c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d2",
+          "adapterTag": "dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e625",
+          "l1Anchor": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+          "complianceFlag": "0000000000000000000000000000000000000000000000000000000000000000",
+          "settlementDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "payeeBound": true,
+          "amountBound": true,
+          "complianceProved": false
+        },
+        "timestamps": {
+          "startedAtMs": 1784366739047,
+          "completedAtMs": 1784366833998
+        },
+        "publicStateHash": "2a5a49bf575da3fa06be3a674649849db816c6e336c9164752a576d5a8f489ff",
+        "receiptHash": "4329bbda1a05fe2a3e3564527dc45938bd2a9c27c011a0ccdafae37ba2581f69"
+      },
+      "verify": {
+        "ok": true,
+        "verifyDurationMs": 59
+      }
+    },
+    "4-revolut-payout": {
+      "startedAt": "2026-07-18T09:27:14.059Z",
+      "completedAt": "2026-07-18T09:27:21.470Z",
+      "durationMs": 7411,
+      "submit": {
+        "railTxRef": "054d1c27-54d3-e347-0040-00c9be500222",
+        "status": "ACCEPTED",
+        "providerStatus": "PROCESSING",
+        "providerReference": {
+          "id": "054d1c27-54d3-e347-0040-00c9be500222",
+          "idempotencyKey": "e04db010-fe7a-5aee-bdfe-3ec6d109d428",
+          "recipientId": "510b4c7d-a7e9-4381-b12f-e4d65bf1e359"
+        },
+        "raw": {
+          "provider": "revolut",
+          "mode": "sandbox",
+          "providerState": "pending"
+        }
+      },
+      "statusPolls": [
+        {
+          "railTxRef": "054d1c27-54d3-e347-0040-00c9be500222",
+          "providerStatus": "SETTLED",
+          "providerState": "completed",
+          "observedAt": 1784366841470,
+          "raw": {
+            "provider": "revolut",
+            "mode": "sandbox"
+          }
+        }
+      ],
+      "finalProviderStatus": "SETTLED"
+    },
+    "5-oracle-attestation": {
+      "startedAt": "2026-07-18T09:27:21.470Z",
+      "completedAt": "2026-07-18T09:27:21.473Z",
+      "durationMs": 3,
+      "attestation": {
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "status": "SETTLED",
+        "railTxRef": "054d1c27-54d3-e347-0040-00c9be500222",
+        "settlementDigest": "460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c5",
+        "signature": "e60fc306b42940cd6d040b514432a7e05ba4ec12d0c6728992c0e22c00b94a465688b0d50b2428d07cefff8e7b6d848df47b0c3192a8d80d7cd0d9b779b75109",
+        "signedAt": 1784366841
+      },
+      "fingerprint": "b5fc29de9deb01ed4d0c72a860edda4c7faccd4e51296e220502e31491031339",
+      "digestInputs": {
+        "domain": "offramp:settlement:v1",
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "railTxRef": "054d1c27-54d3-e347-0040-00c9be500222",
+        "status": "SETTLED",
+        "signedAt": 1784366841
+      },
+      "derivation": "settlementDigest = sha256('offramp:settlement:v1' + '|' + intentId + '|' + railTxRef + '|' + status + '|' + signedAt); attestation body canonicalized (sorted keys) and Ed25519-signed with the operator oracle key (sdk/src/oracle/settlement-oracle.ts attestSettlement).",
+      "oraclePublicKey": "b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bff"
+    },
+    "6-midnight-settlement": {
+      "startedAt": "2026-07-18T09:27:21.474Z",
+      "completedAt": "2026-07-18T09:27:44.683Z",
+      "durationMs": 23210,
+      "settleDurationMs": 23180,
+      "receipt": {
+        "kind": "midnight-settlement-receipt",
+        "version": 1,
+        "contractId": "offramp",
+        "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+        "intentReceiptHash": "4329bbda1a05fe2a3e3564527dc45938bd2a9c27c011a0ccdafae37ba2581f69",
+        "cardanoLockAnchor": {
+          "txHash": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+          "outputIndex": 0
+        },
+        "contractAddress": "cfb3512701425646bca3711775651f30acc589a716c48745d9a4314327ca37c3",
+        "network": "undeployed",
+        "artifactManifestHash": "37bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc",
+        "settlementDigest": "460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c5",
+        "transaction": {
+          "operation": "proveOffRampSettlement",
+          "status": "SucceedEntirely",
+          "txId": "00a989716d0b5f205a9aae3609ef0bec7e698b80e0fcef851866efdbfcb399b7e4",
+          "identifiers": [
+            "00a989716d0b5f205a9aae3609ef0bec7e698b80e0fcef851866efdbfcb399b7e4",
+            "000e3e322f5db81ef6085d33390d7c3123e706c0ea2f5aceecf60b4681b88a100f"
+          ],
+          "txHash": "01304fcbe435ff2d1804002694fe9974ed59871ceb88a74ca2ca9563153275ee",
+          "blockHash": "c0b00c58dce88aca8d2b704bc62fc9b0907801d1cf4c74eb7b8c41cf873a40fa",
+          "blockHeight": 961096,
+          "blockTimestamp": 1784366850,
+          "finalizedAtMs": 1784366864625
+        },
+        "publicState": {
+          "intentId": "1fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9",
+          "payeeCommitment": "38124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d1582",
+          "amountCommitment": "c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d2",
+          "adapterTag": "dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e625",
+          "l1Anchor": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+          "complianceFlag": "0000000000000000000000000000000000000000000000000000000000000000",
+          "settlementDigest": "460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c5",
+          "payeeBound": true,
+          "amountBound": true,
+          "complianceProved": false
+        },
+        "timestamps": {
+          "startedAtMs": 1784366841474,
+          "completedAtMs": 1784366864654
+        },
+        "publicStateHash": "32ce84c3b58bac1e32fd2fb25da66cc19aa8fb9c53604c17c20723e98f5a815f",
+        "receiptHash": "f2645ac44628c62a0ccda11d75507e3d9789791bc03197208c436a225fae2e84"
+      },
+      "verify": {
+        "ok": true,
+        "verifyDurationMs": 29
+      }
+    },
+    "7-release-authorization": {
+      "startedAt": "2026-07-18T09:27:44.684Z",
+      "completedAt": "2026-07-18T09:27:45.521Z",
+      "durationMs": 837,
+      "lockUtxo": {
+        "txHash": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb",
+        "outputIndex": 0
+      },
+      "body": {
+        "settlementDigest": "460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c5",
+        "midnightSettlementReceiptHash": "f2645ac44628c62a0ccda11d75507e3d9789791bc03197208c436a225fae2e84",
+        "authorizationExpiry": "1784367464684"
+      },
+      "authorizationExpiryIso": "2026-07-18T09:37:44.684Z",
+      "authorizationMessageCbor": "d8799f581b4d49444e494748545f4f464652414d505f52454c454153455f563158201fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9582038124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d15825820c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d25820dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e6251b0000019f74b421b0582037bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc581c33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c581c749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d5820b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bff58207b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb005820460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c55820f2645ac44628c62a0ccda11d75507e3d9789791bc03197208c436a225fae2e841b0000019f7496c0ecff",
+      "oracleSignature": "df9a21816b1c20f0683b7e8d4f79a6a9428cbfcaed24a2e306742f2c81f85b69967849bd51b8ffff31695cbddd730fe06509fedb42e07fb5b750f7e58f848601",
+      "oraclePublicKey": "b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bff",
+      "note": "authorizationMessageCbor is the exact canonical byte string signed by the oracle and re-derived on-chain by the Aiken validator (sdk/src/cardano/escrow_script.ts releaseAuthorizationMessageForUtxo)."
+    },
+    "8-cardano-release": {
+      "startedAt": "2026-07-18T09:27:45.521Z",
+      "completedAt": "2026-07-18T10:04:24.989Z",
+      "durationMs": 6132,
+      "clockSkewIncident": {
+        "summary": "First RELEASE submission (09:27:45Z) was rejected by the Preprod node: the local clock was ~8 slots ahead of the chain tip and submitReleaseTx pinned the tx validity start to Date.now() (slot 128683667 > tip slot 128683659). Fixed by back-dating validFrom by CARDANO_RELEASE_CLOCK_SKEW_MS (default 120000 ms) in sdk/src/cardano/release.ts; SDK rebuilt and its test suite re-run (27/27) before this resume. Stages 0-7 were NOT re-run; this stage re-signed a fresh ReleaseAuthorization over the same settlement digest and Midnight settlement receipt hash.",
+        "firstAttempt": {
+          "startedAt": "2026-07-18T09:27:45.521Z",
+          "completedAt": "2026-07-18T09:27:49.818Z",
+          "durationMs": 4297,
+          "error": {
+            "message": "Error: {\"contents\":{\"contents\":{\"contents\":{\"era\":\"ShelleyBasedEraConway\",\"error\":[\"ConwayUtxowFailure (UtxoFailure (OutsideValidityIntervalUTxO (ValidityInterval {invalidBefore = SJust (SlotNo 128683667), invalidHereafter = SJust (SlotNo 128684264)}) (SlotNo 128683659)))\"],\"kind\":\"ShelleyTxValidationError\"},\"tag\":\"TxValidationErrorInCardanoMode\"},\"tag\":\"TxCmdTxSubmitValidationError\"},\"tag\":\"TxSubmitFail\"}",
+            "stack": "TxSubmitError: Error: {\"contents\":{\"contents\":{\"contents\":{\"era\":\"ShelleyBasedEraConway\",\"error\":[\"ConwayUtxowFailure (UtxoFailure (OutsideValidityIntervalUTxO (ValidityInterval {invalidBefore = SJust (SlotNo 128683667), invalidHereafter = SJust (SlotNo 128684264)}) (SlotNo 128683659)))\"],\"kind\":\"ShelleyTxValidationError\"},\"tag\":\"TxValidationErrorInCardanoMode\"},\"tag\":\"TxCmdTxSubmitValidationError\"},\"tag\":\"TxSubmitFail\"}\n    at catch (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/@lucid-evolution/lucid/src/tx-submit/TxSubmit.ts:100:25)\n    at /root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/core-effect.ts:1683:29\n    at <anonymous> (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:1161:41)\n    at body (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/Utils.ts:786:14)\n    at FiberRuntime.Sync (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:1161:19)\n    at <anonymous> (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:1398:53)\n    at f (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/tracer.ts:101:19)\n    at runLoop (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:1384:34)\n    at evaluateEffect (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:950:27)\n    at evaluateMessageWhileSuspended (/root/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/node_modules/effect/src/internal/fiberRuntime.ts:918:14)"
+          }
+        }
+      },
+      "resumedBy": "scripts/e2e-preprod-resume-release.ts",
+      "txHash": "5e6531e8e3f7327d122255c0583cf287c585be3e32023a5683841b0a23e207f9",
+      "spendsLockUtxo": "7b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb#0",
+      "operatorFundingConfirmationsAtRelease": 136,
+      "authorization": {
+        "body": {
+          "settlementDigest": "460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c5",
+          "midnightSettlementReceiptHash": "f2645ac44628c62a0ccda11d75507e3d9789791bc03197208c436a225fae2e84",
+          "authorizationExpiry": "1784369390000"
+        },
+        "authorizationExpiryIso": "2026-07-18T10:09:50.000Z",
+        "authorizationMessageCbor": "d8799f581b4d49444e494748545f4f464652414d505f52454c454153455f563158201fc68f0700323c4c7927fedabd79beeed00cef917655e52678d629a57b5dd5d9582038124eb19dd0228f38258076f929ee30263bf36f826e786c4d52d58fb70d15825820c6afb9f091aefef22def244c87f41b1e1cb076a759f0f5e422faf3d46cda78d25820dc15caf5e70789899eba52749eb21fb61da5519f4b2fc003631fb2920ba6e6251b0000019f74b421b0582037bf29a720a3451c0de6479a976161fbc8350dc64c0dc4bc9d2448386dc7e7cc581c33ecacabf249c7419632e0cef2edecf79b01128cc5cbdd9df623d00c581c749e973f1d05153e8513f6b886116bc807d0ee083dc3ce788eda650d5820b9979d7f1f42819a97e9ecfd904181beb38a1ff697b46de53a3613c08ad35bff58207b711f7e5d1816e89f988a90a8c6def90f4679ab8294afe99149c373f1c580eb005820460ba214e8d2d6e6887edd2565c4a2931360eaae0562ee7991cf2232983f74c55820f2645ac44628c62a0ccda11d75507e3d9789791bc03197208c436a225fae2e841b0000019f74b421b0ff",
+        "oracleSignature": "ef37b8c6865086afa5b13a24aeeb3e4254388be5c1c0579769839816d9ae43e44c4ccdb9261b85c23bb1ae3598d034e5fc2a58c25468b8255e32275d5efb1d0a",
+        "redeemerCrossCheck": {
+          "matches": true,
+          "onChainRedeemerDataHash": "2e3daa2cd3b72886625418776f1eb714b6ec6a30a486d823f31d022ec424cbfc",
+          "source": "Blockfrost /txs/5e6531e8e3f7327d122255c0583cf287c585be3e32023a5683841b0a23e207f9/redeemers + /scripts/datum/{hash}/cbor",
+          "note": "Recomputed redeemer CBOR (deterministic Ed25519 re-signature of the canonical authorization message) is byte-identical to the redeemer recorded on-chain."
+        },
+        "note": "Fresh authorization for the resumed attempt; supersedes the stage-7 signature (same canonical message fields except authorizationExpiry)."
+      },
+      "confirmation": {
+        "blockHeight": 4950075,
+        "blockHash": "3c976822d605fab6027e3c80b1cacd412d58dacc57669022710ce7abfc1009a9",
+        "blockTime": 1784368836,
+        "fees": "303181",
+        "confirmations": 5,
+        "waitMs": 502
+      },
+      "escrowPayoutToOperator": {
+        "address": "addr_test1vp6fa9elr5z32059z0mt3ps3d0yq058wpq7u8nnc3mdx2rg6td60x",
+        "addressNote": "Enterprise (payment-credential-only) address derived from datum.operatorPkh — the datum-bound destination enforced by submitReleaseTx; same payment key as the operator base address.",
+        "outputIndex": 0,
+        "lovelace": "5000000"
+      },
+      "allOutputs": [
+        {
+          "outputIndex": 0,
+          "address": "addr_test1vp6fa9elr5z32059z0mt3ps3d0yq058wpq7u8nnc3mdx2rg6td60x",
+          "lovelace": "5000000"
+        },
+        {
+          "outputIndex": 1,
+          "address": "addr_test1qp6fa9elr5z32059z0mt3ps3d0yq058wpq7u8nnc3mdx2rt3kmkg85y7flkpu2ldh2uuuqfdsysu42y623x5794raxws2gaefv",
+          "lovelace": "199696819"
+        },
+        {
+          "outputIndex": 2,
+          "address": "addr_test1qp6fa9elr5z32059z0mt3ps3d0yq058wpq7u8nnc3mdx2rt3kmkg85y7flkpu2ldh2uuuqfdsysu42y623x5794raxws2gaefv",
+          "lovelace": "195000000",
+          "collateralReturn": true
+        }
+      ],
+      "explorer": "https://preprod.cardanoscan.io/transaction/5e6531e8e3f7327d122255c0583cf287c585be3e32023a5683841b0a23e207f9"
+    }
+  },
+  "completedAt": "2026-07-18T10:04:24.990Z",
+  "result": "PASSED",
+  "notes": [
+    "Stage 8 was completed by the resume driver after a clock-skew rejection of the first release submission; see stages['8-cardano-release'].clockSkewIncident for the original error verbatim."
+  ]
+}

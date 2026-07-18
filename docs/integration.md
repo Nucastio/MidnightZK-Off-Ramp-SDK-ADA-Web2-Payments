@@ -2,11 +2,9 @@
 
 Step-by-step guide for integrating the **MidnightZK Off-Ramp SDK** into a wallet or dApp.
 
-The SDK is a thin TypeScript surface (`OffRampSDK`) over Cardano + Midnight + rail-adapter modules. The same modules also power the bundled Hono backend (`backend/api/`), so an integrator can talk to either the in-process class **or** the HTTP API documented in the [API reference](api-reference.md).
+The SDK is a typed TypeScript surface (`OffRampSDK` + Cardano tx builders) over Cardano + Midnight + rail-adapter modules. The same modules power the bundled Hono backend (`backend/api/`), so an integrator can use the in-process class **or** the HTTP API documented in the [API reference](api-reference.md). Read the [trust model](trust-model.md) first — in particular: Cardano does **not** verify SNARKs directly; release is authorized by the Settlement Oracle's signature.
 
 ## 1. Install + configure
-
-Add the SDK to your project (during the milestone, install from a workspace copy or the GitHub source archive at the [v1.0.0 release](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/releases/tag/v1.0.0)):
 
 ```ts
 import {
@@ -17,175 +15,238 @@ import {
   submitReleaseTx,
   submitRefundTx,
   escrowScriptAddress,
+  releaseAuthorizationMessageForUtxo,
+  vkHash,
 } from "./sdk/src/index.ts";
-import type { RailId, Currency } from "./sdk/src/types.ts";
+import { signReleaseAuthorization } from "./sdk/src/oracle/settlement-oracle.ts";
+import { createMidnightProofProviderFromEnv } from "./midnight-local-cli/src/index.ts";
+import type { RailId, Currency, EscrowDatumIn, EscrowOutRef } from "./sdk/src/index.ts";
 ```
 
-Set the [environment variables](quickstart.md#2-environment) in your `.env` (Blockfrost project id, mnemonics, oracle signing key, etc.).
+Set the [environment variables](quickstart.md#2-environment) in your `.env` (Blockfrost project id, mnemonics, oracle signing key, Midnight endpoints, `RAIL_WEBHOOK_HMAC_KEY`).
 
-## 2. The 6-step off-ramp pipeline
+**The `MidnightProofProvider` is mandatory.** The constructor throws without one, and it rejects any provider whose `artifactManifestHash` differs from the packaged SDK's 23-asset circuit manifest:
 
-The TAD §4 lifecycle is **Initiate → Lock → Prove → Submit → Settle → Release** (with **Refund** as the alternative path after the deadline). The SDK class wires the off-chain steps; Cardano helpers handle the on-chain ones.
+```ts
+const midnightProofProvider = createMidnightProofProviderFromEnv(); // real node+indexer+proof server
+const sdk = new OffRampSDK({ senderPkh, operatorPkh, midnightProofProvider });
+```
+
+There is no mock fallback in the production path. A test-only in-memory provider exists under `sdk/src/testing/` for unit tests.
+
+## 2. The off-ramp pipeline
+
+Lifecycle (mirrored by the backend state machine): **Initiate → Lock → Prove → Submit → Settle → Settlement receipt → Release authorization → Release** — with **Refund** as the alternative path at/after the deadline.
 
 ```mermaid
 sequenceDiagram
   participant App as Wallet/dApp
   participant SDK as OffRampSDK
   participant Cardano as Cardano (Lucid)
-  participant Midnight as Midnight prover
+  participant Midnight as MidnightProofProvider
   participant Rail as Rail adapter
   participant Oracle as Settlement Oracle
 
   App->>SDK: initiateOffRamp(params)
   SDK->>Rail: quote()
   SDK-->>App: intentId + commitments + railQuote
-  App->>Cardano: submitLockTx(intentRecord)
+  App->>Cardano: submitLockTx(lucid, datum, lovelace)
   Cardano-->>App: lockTxHash
-  App->>SDK: generateZKProof(...)
-  SDK->>Midnight: prove(...)
-  Midnight-->>SDK: ProofBundle
-  App->>SDK: verifyZKProof(proof, inputs)
+  App->>SDK: generateZKProof({..., cardanoLockAnchor})
+  SDK->>Midnight: real circuit execution
+  Midnight-->>SDK: MidnightIntentReceipt (finalized txs)
   App->>SDK: submitPayment(adapter, intentId, proof, quote)
-  SDK->>Rail: submit()
-  Rail-->>SDK: railTxRef + HMAC
-  App->>SDK: confirmSettlement(railTxRef, status, webhook)
-  SDK->>Oracle: attestSettlement(...)
-  Oracle-->>App: signed OracleAttestation
-  App->>Cardano: submitReleaseTx(lockTxHash, lockOutputIndex)
+  SDK->>Rail: submit() (idempotent, quote-bound)
+  Rail-->>SDK: provider reference
+  App->>Rail: poll authenticated status → SETTLED
+  App->>SDK: confirmSettlement(...) → OracleAttestation
+  App->>SDK: generateSettlementReceipt(...) → MidnightSettlementReceipt
+  App->>Oracle: signReleaseAuthorization(msg for exact UTxO)
+  App->>Cardano: submitReleaseTx(lucid, utxoRef, authorization)
 ```
 
 ### Step 1 — Initiate
 
 ```ts
-const sdk = new OffRampSDK({ senderPkh, operatorPkh });
-
 const { initiate, payeeSalt, amountSalt, railQuote } = await sdk.initiateOffRamp({
-  adapter: "cashapp",
-  payeeHandle: "$alice",
+  adapter: "revolut",
+  payeeHandle: "revolut-counterparty",
   amountAda: 2,
   fiatAmount: "1.50",
-  fiatCurrency: "USD",
+  fiatCurrency: "GBP",
 });
 // initiate.intentId, initiate.payeeCommitment, initiate.amountCommitment,
 // initiate.adapterTag, initiate.deadline, initiate.vkHash, initiate.escrowLovelace
 ```
 
-**No on-chain state is created.** Keep `payeeSalt` and `amountSalt` in private state — they're required by the prover.
+**No on-chain state is created.** Keep `payeeSalt` and `amountSalt` in private state — the prover needs them, and the backend never persists them.
 
 ### Step 2 — LOCK ADA on Cardano
 
-```ts
-const lucid = await createAppLucid("sender");      // returns Lucid Evolution bound to the sender mnemonic
-const intentRecord = /* compose IntentRecord from `initiate` + ctx; see scripts/preprod-lock.ts */;
+`submitLockTx` takes the Lucid instance, a full `EscrowDatumIn`, and the lovelace amount. It validates every field length and refuses to run if the connected wallet's payment key hash differs from `datum.senderPkh`:
 
-const { txHash } = await submitLockTx({ lucid, intentRecord });
-// inline EscrowDatum is on-chain at the validator address.
-console.log("Script address:", escrowScriptAddress());
+```ts
+const lucid = await createAppLucid("sender");
+
+const datum: EscrowDatumIn = {
+  intentId: initiate.intentId,
+  payeeCommitment: initiate.payeeCommitment,
+  amountCommitment: initiate.amountCommitment,
+  adapterTag: initiate.adapterTag,
+  deadline: BigInt(initiate.deadline * 1000),   // POSIX ms
+  circuitArtifactHash: vkHash(),                // 23-asset artifact manifest hash
+  senderPkh,
+  operatorPkh,
+  oraclePublicKey: operatorPublicKeyHex(),      // 32-byte Ed25519 oracle key
+};
+
+const { txHash: lockTxHash, scriptAddress } = await submitLockTx(
+  lucid,
+  datum,
+  initiate.escrowLovelace,
+);
 ```
 
-The Datum shape (`intent_id`, `payee_commitment`, `amount_commitment`, `adapter_tag`, `sender_pkh`, `operator_pkh`, `deadline`, `vk_hash`, `principal_lovelace`) is recorded inline; reviewers can decode it from Cardanoscan.
+The on-chain inline datum fields (matching [`escrow.ak`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/cardano/escrow/validators/escrow.ak)) are: `intent_id`, `payee_commitment`, `amount_commitment`, `adapter_id`, `deadline`, `circuit_artifact_hash`, `sender_pkh`, `operator_pkh`, `oracle_public_key`.
 
-### Step 3 — Generate the Midnight ZK proof
+### Step 3 — Generate the Midnight intent receipt
 
 ```ts
 const proof = await sdk.generateZKProof({
   intentId: initiate.intentId,
-  payeeHandle: "$alice",
+  cardanoLockAnchor: { txHash: lockTxHash, outputIndex: 0 },
+  payeeHandle: "revolut-counterparty",
   payeeSalt,
   fiatAmount: "1.50",
-  fiatCurrency: "USD",
+  fiatCurrency: "GBP",
   railQuoteDigest: railQuote.railQuoteDigest,
   principalLovelace: initiate.escrowLovelace,
   amountSalt,
+  payeeCommitment: initiate.payeeCommitment,
+  amountCommitment: initiate.amountCommitment,
   adapterTag: initiate.adapterTag,
 });
 
 await sdk.verifyZKProof(proof, {
-  payeeHandle: "$alice", payeeSalt, fiatAmount: "1.50", fiatCurrency: "USD",
-  railQuoteDigest: railQuote.railQuoteDigest,
-  principalLovelace: initiate.escrowLovelace, amountSalt,
+  intentId: initiate.intentId,
+  cardanoLockAnchor: { txHash: lockTxHash, outputIndex: 0 },
+  payeeCommitment: initiate.payeeCommitment,
+  amountCommitment: initiate.amountCommitment,
+  adapterTag: initiate.adapterTag,
 });
 ```
 
-`verifyZKProof` is the same deterministic re-derive-and-compare the backend runs before submitting payment — call it for defence-in-depth in your client.
+`proof` is a `MidnightIntentReceipt`: finalized Midnight transaction identifiers (txId/txHash/blockHash/blockHeight) for the deploy, `bindOffRampIntent` (anchored to the Cardano lock tx), `provePayeeBinding`, and `proveAmountBinding` circuits, plus the queried public contract state and a canonical `receiptHash`. `verifyZKProof` checks receipt integrity and re-verifies against the provider; it throws `ProofVerifyError` on mismatch.
 
 ### Step 4 — Submit payment via the rail adapter
 
 ```ts
 const submit = await sdk.submitPayment({
-  adapter: "cashapp",
+  adapter: "revolut",
   intentId: initiate.intentId,
   proof,
-  payeeHandle: "$alice",
+  payeeHandle: "revolut-counterparty",
   quote: railQuote,
 });
-// submit.railTxRef, submit.status === "ACCEPTED" | "REJECTED", submit.webhookHmac
+// submit.providerReference — use it to poll the adapter's authenticated getStatus()
 ```
 
 Adapter behaviour is selected by `RAIL_ADAPTER_MODE`:
 
-- `mock` — deterministic in-process simulator (used by the internal test suite).
-- `sandbox` — real provider HTTP. Wise sandbox is fully wired ([live evidence](sandbox-evidence/README.md)). Cash App uses **Afterpay sandbox** semantics — see the canonical provider reference: <https://www.postman.com/afterpay-1-426879/afterpay-online-apis-v2/folder/zohg5nd/checkouts>. Revolut sandbox is wired to the same interface and ready for credentials.
+- `sandbox` — real provider HTTP. **Wise**: strict sandbox client (quote-bound transfer, deterministic idempotency, no mock fallback; requires a fresh token). **Revolut**: live-sandbox **verified** — a real sandbox payment completed through this adapter. **Cash App**: implemented against the official Payouts API but **credential-gated** (early-access partner product) — no live evidence until credentials are granted.
+- `mock` — deterministic in-process simulators, **test-only**.
 
-### Step 5 — Confirm settlement via the Settlement Oracle
+### Step 5 — Confirm settlement (adapter-observed) + oracle attestation
+
+Settlement truth comes from the **provider**, not the caller. Poll the adapter's authenticated status (or verify relayed provider webhook bytes via `adapter.verifyWebhook`), and only then attest:
 
 ```ts
+const observation = await getAdapter("revolut").getStatus({
+  intentId: initiate.intentId,
+  providerReference: submit.providerReference,
+});
+// observation.providerStatus: "SUBMITTED" | "PROCESSING" | "SETTLED" | "FAILED"
+
 const attestation = await sdk.confirmSettlement({
   intentId: initiate.intentId,
-  railTxRef: submit.railTxRef,
-  status: "SETTLED",
-  webhookPayload: railWebhookBody,   // optional — verifies provider HMAC
-  webhookHmac: submit.webhookHmac,
+  railTxRef: observation.railTxRef,
+  status: "SETTLED",            // only after the provider observation is terminal
 });
-// attestation.signature is a 128-hex Ed25519 sig binding intentId + railTxRef + settlementDigest.
 ```
 
-`confirmSettlement` runs **two checks**: (a) optional adapter-HMAC verification on the rail webhook payload, and (b) self-verification of the produced attestation. Both are documented at `sdk/src/oracle/settlement-oracle.ts`.
+The bundled backend enforces this server-side: `POST /api/offramp/confirm-settlement` **rejects caller-supplied statuses** outright.
 
-### Step 6 — RELEASE on Cardano
+### Step 6 — Midnight settlement receipt
 
 ```ts
-const { txHash: releaseTxHash } = await submitReleaseTx({
-  lucid,
+const settlementReceipt = await sdk.generateSettlementReceipt({
+  intentReceipt: proof,
+  settlementDigest: attestation.settlementDigest,
+});
+await sdk.verifySettlementReceipt(settlementReceipt, {
   intentId: initiate.intentId,
-  lockTxHash: lockTxHash,
-  lockOutputIndex: 0,
+  intentReceiptHash: proof.receiptHash,
+  settlementDigest: attestation.settlementDigest,
 });
 ```
 
-The operator's signature satisfies the `Release` redeemer; the escrow UTxO is spent back to the operator's address. A future revision of the validator will additionally verify the ZK proof + Oracle attestation **on-chain** (see [`docs/TAD_v1.1.pdf`](https://github.com/Nucastio/MidnightZK-Off-Ramp-SDK-ADA-Web2-Payments/blob/main/docs/TAD_v1.1.pdf) §5).
+This runs `proveOffRampSettlement` on the same Midnight contract and returns a finalized, hash-bound `MidnightSettlementReceipt`.
 
-### Alternative path — REFUND after the deadline
+### Step 7 — Oracle-signed release authorization + RELEASE
 
-```ts
-const { txHash: refundTxHash } = await submitRefundTx({
-  lucid,
-  intentId: initiate.intentId,
-  lockTxHash,
-  lockOutputIndex: 0,
-});
-```
-
-The sender's signature satisfies the `Refund` redeemer; the LOCK output is spent back to the sender once the deadline has elapsed.
-
-## 3. Webhook + Oracle signature verification
-
-Rail adapters return an HMAC of the canonical webhook payload (`webhookHmac`). `confirmSettlement` verifies this before signing the attestation:
+The release authorization is bound to the **exact escrow UTxO** and verified on-chain by the validator:
 
 ```ts
-import { verifyAdapterWebhook, verifyAttestation, operatorPublicKeyHex } from "./sdk/src/oracle/settlement-oracle.ts";
+const utxoRef: EscrowOutRef = { txHash: lockTxHash, outputIndex: 0 };
+const body = {
+  settlementDigest: attestation.settlementDigest,
+  midnightSettlementReceiptHash: settlementReceipt.receiptHash,
+  authorizationExpiry: BigInt(Date.now() + 10 * 60_000),
+};
+const message = await releaseAuthorizationMessageForUtxo(lucidOperator, utxoRef, body);
+const oracleSignature = signReleaseAuthorization(message); // Ed25519, oracle key
 
-const ok = verifyAdapterWebhook(payload, hmac);          // bool
-const att = await sdk.confirmSettlement({ ... });
-const sigOk = verifyAttestation(att);                    // bool — re-checks Ed25519
-const pub = operatorPublicKeyHex();                      // 64-hex — publish to consumers
+const { txHash: releaseTxHash } = await submitReleaseTx(
+  lucidOperator,                          // operator wallet pays fees
+  utxoRef,
+  { ...body, oracleSignature },
+);
 ```
 
-The operator's Ed25519 secret key lives in `OPERATOR_ED25519_SK_HEX`. **Never commit it.** Consumers verify attestations using only the public key.
+On-chain the validator checks the oracle signature over datum + spending output reference + settlement digest + settlement-receipt hash + expiry, the operator's signature, a validity window entirely before both the deadline and the expiry, and full-value payout to the datum-bound operator address. The SDK additionally refuses expired authorizations and wrong wallets before submitting.
 
-## 4. Where to go next
+### Alternative path — REFUND at/after the deadline
 
-- [API reference](api-reference.md) — REST surface (`/api/offramp/*`) if you'd rather call the bundled backend.
-- [SDK reference](sdk-reference.md) — every exported symbol from `sdk/src/index.ts`.
-- [Examples](examples.md) — three runnable end-to-end scenarios.
-- [Architecture](architecture.md) — the protocol picture (TAD §3).
+```ts
+const { txHash: refundTxHash } = await submitRefundTx(lucid, utxoRef);
+```
+
+`submitRefundTx` sets the validity window to start at/after the datum deadline (the validator rejects earlier windows) and pays the full escrow value back to the datum-bound sender address. Only the sender's wallet can produce it.
+
+## 3. Using the HTTP backend instead
+
+The bundled backend exposes the same flow with **per-intent capability-token auth**:
+
+1. `POST /api/offramp/initiate` → returns `capabilityToken`, `payeeSalt`, `amountSalt` **exactly once** (only the token's SHA-256 hash is persisted; handles/salts are never stored).
+2. All subsequent calls send `X-Capability-Token` (or `Authorization: Bearer`): `lock` → `confirm-lock` → `prove` (client re-supplies handle + salts) → `submit-payment` → `confirm-settlement` (adapter-observed; caller status rejected) → `release` → or `refund`.
+3. `release`/`refund` spend only the **stored** lock UTxO reference and datum-bound destinations — caller-supplied `lockTxHash`/`payoutAddress` overrides are rejected.
+
+Full route documentation: [API reference](api-reference.md).
+
+## 4. Webhook + oracle signature verification
+
+```ts
+import { verifyAttestation, operatorPublicKeyHex } from "./sdk/src/index.ts";
+
+const sigOk = verifyAttestation(att);   // re-checks the Ed25519 attestation
+const pub = operatorPublicKeyHex();     // publish to consumers
+```
+
+Provider webhooks are verified by the **adapter** (`verifyWebhook` checks the provider's own signature scheme over the raw bytes). The oracle's Ed25519 secret lives in `OPERATOR_ED25519_SK_HEX` — never commit it; consumers verify with the public key only.
+
+## 5. Where to go next
+
+- [Trust model](trust-model.md) — what each layer proves, and what remains trusted.
+- [API reference](api-reference.md) — REST surface with lifecycle + auth details.
+- [SDK reference](sdk-reference.md) — exported symbols and exact signatures.
+- [Examples](examples.md) — runnable end-to-end scenarios.

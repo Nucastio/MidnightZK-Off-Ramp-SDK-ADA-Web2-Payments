@@ -9,7 +9,7 @@
  * holds the `IntentRecord`. This class wires the four steps together over
  * the same in-process modules used by the backend HTTP server.
  */
-import { adapters, getAdapter } from "./adapters/index.ts";
+import { adapters, getAdapter } from "./adapters/index.js";
 import {
   adapterTag as buildAdapterTag,
   amountCommitment,
@@ -17,21 +17,31 @@ import {
   payeeCommitment,
   randomNonce,
   vkHash,
-} from "./commitments.ts";
-import { prove, verify } from "./midnight/prove.ts";
-import { attestSettlement, verifyAttestation, verifyAdapterWebhook } from "./oracle/settlement-oracle.ts";
-import { OracleError, ProofVerifyError, RailError } from "./errors.ts";
+} from "./commitments.js";
+import {
+  prove,
+  proveSettlement,
+  verify,
+  verifySettlement,
+  type MidnightProofProvider,
+} from "./midnight/prove.js";
+import { attestSettlement, verifyAdapterWebhook, verifyAttestation } from "./oracle/settlement-oracle.js";
+import { OracleError, ProofVerifyError, RailError } from "./errors.js";
 import type {
+  CardanoLockAnchor,
   Currency,
   InitiateOffRampResult,
   IntentParams,
+  MidnightSettlementReceipt,
   OracleAttestation,
   ProofBundle,
   RailAdapter,
   RailId,
+  RailProviderReference,
   RailQuote,
+  RailWebhookInput,
   SubmitPaymentResult,
-} from "./types.ts";
+} from "./types.js";
 
 const ESCROW_DEADLINE_SECONDS = Number(process.env.ESCROW_DEADLINE_SECONDS ?? "900");
 const ESCROW_LOCK_LOVELACE = BigInt(process.env.ESCROW_LOCK_LOVELACE ?? "2000000");
@@ -45,10 +55,19 @@ export interface OffRampSDKConfig {
   senderPkh: string;
   /** Operator PKH that will eventually sign Release. */
   operatorPkh: string;
+  /** Required Midnight execution/verification provider. There is no production mock fallback. */
+  midnightProofProvider: MidnightProofProvider;
 }
 
 export class OffRampSDK {
-  constructor(readonly cfg: OffRampSDKConfig) {}
+  constructor(readonly cfg: OffRampSDKConfig) {
+    if (!cfg.midnightProofProvider) {
+      throw new Error("MidnightProofProvider is required; production SDK construction fails closed");
+    }
+    if (cfg.midnightProofProvider.artifactManifestHash !== vkHash()) {
+      throw new Error("MidnightProofProvider artifact manifest hash does not match the packaged SDK");
+    }
+  }
 
   /** Step 1: build commitments + intent metadata. Does NOT submit any tx. */
   async initiateOffRamp(params: IntentParams): Promise<{
@@ -97,9 +116,10 @@ export class OffRampSDK {
     return { initiate, payeeSalt, amountSalt, railQuote };
   }
 
-  /** Step 2: prove the off-ramp predicates. Returns a proof bundle bound to the intent. */
+  /** Step 2: execute the Midnight intent circuits and return finalized public receipts. */
   async generateZKProof(input: {
     intentId: string;
+    cardanoLockAnchor: CardanoLockAnchor;
     payeeHandle: string;
     payeeSalt: string;
     fiatAmount: string;
@@ -107,26 +127,50 @@ export class OffRampSDK {
     railQuoteDigest: string;
     principalLovelace: bigint;
     amountSalt: string;
+    payeeCommitment: string;
+    amountCommitment: string;
     adapterTag: string;
     complianceMask?: string;
+    contractAddress?: string;
+    priorReceipt?: ProofBundle;
   }): Promise<ProofBundle> {
-    return prove(input);
+    return prove(this.cfg.midnightProofProvider, input);
   }
 
-  /** Independent verifier (re-derive + check) — used by the backend before submitting payment. */
+  /** Verify canonical receipt integrity, trusted public inputs, finalized txs, and provider state. */
   async verifyZKProof(
     proof: ProofBundle,
-    inputs: {
-      payeeHandle: string;
-      payeeSalt: string;
-      fiatAmount: string;
-      fiatCurrency: Currency;
-      railQuoteDigest: string;
-      principalLovelace: bigint;
-      amountSalt: string;
+    expected: {
+      intentId: string;
+      cardanoLockAnchor: CardanoLockAnchor;
+      payeeCommitment: string;
+      amountCommitment: string;
+      adapterTag: string;
+      complianceFlag?: string;
     },
   ): Promise<{ ok: true; verifyDurationMs: number } | { ok: false; reason: string; verifyDurationMs: number }> {
-    const v = await verify(proof, inputs);
+    const v = await verify(this.cfg.midnightProofProvider, proof, expected);
+    if (!v.ok) throw new ProofVerifyError(v.reason ?? "unknown");
+    return { ok: true, verifyDurationMs: v.verifyDurationMs };
+  }
+
+  async generateSettlementReceipt(input: {
+    intentReceipt: ProofBundle;
+    settlementDigest: string;
+  }): Promise<MidnightSettlementReceipt> {
+    return proveSettlement(this.cfg.midnightProofProvider, input);
+  }
+
+  async verifySettlementReceipt(
+    receipt: MidnightSettlementReceipt,
+    expected: {
+      intentId: string;
+      intentReceiptHash: string;
+      settlementDigest: string;
+      contractAddress?: string;
+    },
+  ): Promise<{ ok: true; verifyDurationMs: number } | { ok: false; reason: string; verifyDurationMs: number }> {
+    const v = await verifySettlement(this.cfg.midnightProofProvider, receipt, expected);
     if (!v.ok) throw new ProofVerifyError(v.reason ?? "unknown");
     return { ok: true, verifyDurationMs: v.verifyDurationMs };
   }

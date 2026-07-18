@@ -28,6 +28,11 @@ export ledger complianceFlag: Bytes<32>;
 /// Settlement digest signed by the Settlement Oracle (binds rail webhook to intent).
 export ledger settlementDigest: Bytes<32>;
 
+/// Ordered one-time proof flags. These reveal only which public phase completed.
+export ledger payeeBound: Boolean;
+export ledger amountBound: Boolean;
+export ledger complianceProved: Boolean;
+
 // ── Private witnesses ──────────────────────────────────────────────────────
 // Supplied by the off-chain prover; never leave the wallet / proof enclave.
 
@@ -51,33 +56,45 @@ constructor(intent: Bytes<32>, payee: Bytes<32>, amount: Bytes<32>, adapter: Byt
   l1Anchor = disclose(pad(32, ""));
   complianceFlag = disclose(pad(32, ""));
   settlementDigest = disclose(pad(32, ""));
+  payeeBound = disclose(false);
+  amountBound = disclose(false);
+  complianceProved = disclose(false);
 }
 
 // ── Circuits ───────────────────────────────────────────────────────────────
 
-/// Anchor the off-ramp intent on Midnight. Public-only call (no witness gate);
-/// a future revision will additionally bind a Cardano LOCK tx hash.
+/// Record the externally verified Cardano LOCK tx hash on Midnight.
+/// Cardano transaction provenance remains an off-chain provider responsibility.
 export circuit bindOffRampIntent(anchor: Bytes<32>): [] {
+  const zero = disclose(pad(32, ""));
+  assert(l1Anchor == zero, "Cardano lock anchor already bound");
+  assert(disclose(anchor) != zero, "Cardano lock anchor must be nonzero");
   l1Anchor = disclose(anchor);
 }
 
 /// Prove the off-chain prover knows the payee secret whose commitment matches
 /// the on-ledger `payeeCommitment`. Reveals no payee data.
 export circuit provePayeeBinding(): Boolean {
+  assert(l1Anchor != disclose(pad(32, "")), "Cardano lock anchor must be bound first");
+  assert(!payeeBound, "Payee binding already proved");
   const s = payeeSecret();
   assert(s.is_some, "Payee secret missing");
   const c = disclose(deriveCommitment(pad(32, "offramp:payee:v1"), s.value));
   assert(c == payeeCommitment, "Payee commitment mismatch");
+  payeeBound = disclose(true);
   return true;
 }
 
 /// Prove the off-chain prover knows the amount-side witness whose commitment
 /// matches the on-ledger `amountCommitment`. Reveals no fiat amount.
 export circuit proveAmountBinding(): Boolean {
+  assert(payeeBound, "Payee binding must be proved first");
+  assert(!amountBound, "Amount binding already proved");
   const s = amountSecret();
   assert(s.is_some, "Amount secret missing");
   const c = disclose(deriveCommitment(pad(32, "offramp:amount:v1"), s.value));
   assert(c == amountCommitment, "Amount commitment mismatch");
+  amountBound = disclose(true);
   return true;
 }
 
@@ -86,16 +103,24 @@ export circuit proveAmountBinding(): Boolean {
 /// enforced via assert (so a false predicate makes the proof fail rather than
 /// disclosing the comparison result).
 export circuit proveComplianceFlag(allowedMask: Bytes<32>): [] {
+  assert(amountBound, "Amount binding must be proved first");
+  assert(!complianceProved, "Compliance flag already proved");
+  assert(settlementDigest == disclose(pad(32, "")), "Settlement already recorded");
   const a = jurisdictionAttr();
   assert(a.is_some, "Jurisdiction attribute missing");
   // Current build: simple equality predicate; future revision may swap for set-membership / range proofs.
   assert(a.value == allowedMask, "Jurisdiction attribute does not match allowed mask");
   complianceFlag = disclose(allowedMask);
+  complianceProved = disclose(true);
 }
 
 /// Aggregated final proof: re-asserts payee + amount bindings and records the
 /// Settlement Oracle's `settlement_digest` on-chain.
 export circuit proveOffRampSettlement(digest: Bytes<32>): Boolean {
+  const zero = disclose(pad(32, ""));
+  assert(amountBound, "Amount binding must be proved first");
+  assert(settlementDigest == zero, "Settlement digest already recorded");
+  assert(disclose(digest) != zero, "Settlement digest must be nonzero");
   const ps = payeeSecret();
   const as_ = amountSecret();
   assert(ps.is_some, "Payee secret missing");

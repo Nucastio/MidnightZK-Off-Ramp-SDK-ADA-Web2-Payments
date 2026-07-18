@@ -60,10 +60,11 @@ nav:
       - API reference: api-reference.md
       - SDK reference: sdk-reference.md
       - Architecture: architecture.md
+      - Trust model: trust-model.md
   - Release evidence:
-      - Final Testing & Release: final-testing-and-release.md
+      - Final Testing & Release (v1.0.0, historical): final-testing-and-release.md
       - Community engagement: community-engagement.md
-      - Internal testing report: internal-testing-report.md
-      - Cardano Preprod evidence: testnet-evidence.md
-      - Wise sandbox evidence: sandbox-evidence/README.md
+      - Internal testing report (simulation harness): internal-testing-report.md
+      - Cardano Preprod evidence (v1, historical): testnet-evidence.md
+      - Wise sandbox evidence (v1, unfunded): sandbox-evidence/README.md
 

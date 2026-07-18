@@ -5,6 +5,7 @@ import {
   type LucidEvolution,
   type Network,
 } from "@lucid-evolution/lucid";
+import { getAddressDetails } from "@lucid-evolution/utils";
 
 export type AppLucid = LucidEvolution;
 
@@ -43,17 +44,16 @@ export async function createAppLucid(role: "sender" | "operator" = "sender"): Pr
   return lucid;
 }
 
-export function addressPaymentPkh(addressBech32: string, lucid: AppLucid): string {
-  const details = lucid.utils.getAddressDetails(addressBech32);
+export function addressPaymentPkh(addressBech32: string, _lucid: AppLucid): string {
+  const details = getAddressDetails(addressBech32);
   const pkh = details.paymentCredential?.hash;
   if (!pkh) throw new Error("address has no payment credential hash");
   return pkh;
 }
 
 export function senderPkhFromMnemonic(mnemonic: string, network: Network): string {
-  const w = walletFromSeed(mnemonic.trim(), { network, addressType: "Base", accountIndex: 0 });
-  // walletFromSeed returns the wallet's address; we extract the payment PKH via a freshly-instantiated Lucid utility.
-  // Simpler: derive directly via @lucid-evolution/utils.
-  // To avoid an extra import surface here, callers should prefer `addressPaymentPkh(await lucid.wallet().address(), lucid)`.
-  return w.address;
+  const wallet = walletFromSeed(mnemonic.trim(), { network, addressType: "Base", accountIndex: 0 });
+  const pkh = getAddressDetails(wallet.address).paymentCredential?.hash;
+  if (!pkh) throw new Error("derived address has no payment credential hash");
+  return pkh;
 }

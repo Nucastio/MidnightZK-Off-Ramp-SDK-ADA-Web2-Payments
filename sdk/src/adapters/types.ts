@@ -1,1 +1,16 @@
-export type { RailAdapter, RailQuote, SubmitPaymentInput, SubmitPaymentResult, RailId, Currency } from "../types.ts";
+export type {
+  RailAdapter,
+  RailAdapterHealth,
+  RailCapabilities,
+  RailMode,
+  RailProviderReference,
+  RailProviderStatus,
+  RailQuote,
+  RailStatusObservation,
+  RailWebhookInput,
+  RailWebhookVerification,
+  SubmitPaymentInput,
+  SubmitPaymentResult,
+  RailId,
+  Currency,
+} from "../types.js";
